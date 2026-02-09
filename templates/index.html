@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交易系統 - 市場監控</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📈 交易系統 - 市場監控</h1>
+        </header>
+
+        <div class="market-sections">
+            <!-- 美股市場 -->
+            <section class="market-section">
+                <div class="section-header">
+                    <h2>🇺🇸 美股市場</h2>
+                    <div class="section-controls">
+                        <span class="update-time" id="us-markets-update-time">-</span>
+                        <button class="btn-refresh-small" onclick="refreshMarketData('us')" title="更新美股市場數據">🔄 更新</button>
+                    </div>
+                </div>
+                <div id="us-indices">
+                    <div class="loading">載入中...</div>
+                </div>
+                <div id="us-earnings-calendar" class="us-earnings-calendar hidden"></div>
+                <div id="us-stocks">
+                    <div class="loading">載入中...</div>
+                </div>
+            </section>
+
+            <!-- 台股市場 -->
+            <section class="market-section">
+                <div class="section-header">
+                    <h2>🇹🇼 台股市場</h2>
+                    <div class="section-controls">
+                        <span class="update-time" id="tw-markets-update-time">-</span>
+                        <button class="btn-refresh-small" onclick="refreshMarketData('tw')" title="更新台股市場數據">🔄 更新</button>
+                    </div>
+                </div>
+                <div id="tw-earnings-calendar" class="us-earnings-calendar hidden"></div>
+                <div id="tw-markets">
+                    <div class="loading">載入中...</div>
+                </div>
+            </section>
+
+            <!-- 國際市場 -->
+            <section class="market-section">
+                <div class="section-header">
+                    <h2>🌍 國際市場</h2>
+                    <div class="section-controls">
+                        <span class="update-time" id="international-markets-update-time">-</span>
+                        <button class="btn-refresh-small" onclick="refreshMarketData('international')" title="更新國際市場數據">🔄 更新</button>
+                    </div>
+                </div>
+                <div id="international-markets">
+                    <div class="loading">載入中...</div>
+                </div>
+            </section>
+
+            <!-- 重金屬專區：金銀銅等現貨與期貨，含夜盤/日盤 -->
+            <section class="market-section metals-section">
+                <div class="section-header">
+                    <h2>🥇 重金屬專區</h2>
+                    <div class="section-controls">
+                        <span class="update-time" id="metals-update-time">-</span>
+                        <button class="btn-refresh-small" onclick="refreshMarketData('metals')" title="更新金屬報價">🔄 更新</button>
+                    </div>
+                </div>
+                <div class="metals-session-hint" id="metals-session-hint">COMEX 時段：—</div>
+                <div class="metals-subsection">
+                    <h3 class="market-subsection-title">現貨（XAUUSD / XAGUSD 等）</h3>
+                    <div id="metals-spot" class="metals-grid metals-grid-horizontal-row">
+                        <div class="loading">載入中...</div>
+                    </div>
+                </div>
+                <div class="metals-subsection">
+                    <h3 class="market-subsection-title">期貨（夜盤 / 日盤）</h3>
+                    <div id="metals-futures" class="metals-grid metals-grid-horizontal-row">
+                        <div class="loading">載入中...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 加密貨幣專區：比特幣、以太幣等 -->
+            <section class="market-section crypto-section">
+                <div class="section-header">
+                    <h2>₿ 加密貨幣專區</h2>
+                    <div class="section-controls">
+                        <span class="update-time" id="crypto-update-time">-</span>
+                        <button class="btn-refresh-small" onclick="refreshMarketData('crypto')" title="更新加密貨幣報價">🔄 更新</button>
+                    </div>
+                </div>
+                <div class="crypto-hint">報價為美元，24 小時交易</div>
+                <div id="crypto-markets" class="crypto-grid crypto-grid-horizontal-row">
+                    <div class="loading">載入中...</div>
+                </div>
+            </section>
+
+            <!-- 重要比率專區：金銀比、銀銅比、以太比特比、比特黃金比等，含 20 年區間 -->
+            <section class="market-section ratios-section">
+                <div class="section-header">
+                    <h2>📊 重要比率專區</h2>
+                    <div class="section-controls">
+                        <span class="update-time" id="ratios-update-time">-</span>
+                        <button class="btn-refresh-small" onclick="refreshRatios()" title="即時更新比率">🔄 更新</button>
+                    </div>
+                </div>
+                <div class="ratios-hint">金屬比率為 20 年區間；加密相關為全期。點「更新」即時重算。<strong>點擊任一比率可看走勢圖</strong>。</div>
+                <div id="ratios-container" class="ratios-grid">
+                    <div class="loading">載入中...</div>
+                </div>
+            </section>
+
+            <!-- 三大法人買賣超專區：當年累計（三大法人總和、外資） -->
+            <section class="market-section institutional-section">
+                <div class="section-header">
+                    <h2>📊 三大法人買賣超專區</h2>
+                    <div class="section-controls">
+                        <span class="update-time" id="institutional-update-time">-</span>
+                        <button class="btn-refresh-small" onclick="refreshInstitutionalNet()" title="更新三大法人買賣超">🔄 更新</button>
+                    </div>
+                </div>
+                <div class="institutional-hint">當年累計買賣超（百萬台幣），資料來源：<a href="https://www.twse.com.tw/zh/trading/foreign/bfi82u.html" target="_blank" rel="noopener">證交所 BFI82U</a>。自今年年初起算。</div>
+                <div class="institutional-upload-block">
+                    <div class="institutional-dates-block">
+                        <span class="institutional-dates-label">已有資料日期：</span>
+                        <div id="institutional-dates-list" class="institutional-dates-chips"></div>
+                    </div>
+                    <div class="institutional-upload-form">
+                        <label>上傳 CSV（可多選）：</label>
+                        <input type="file" id="institutional-csv-file" accept=".csv" multiple />
+                        <input type="text" id="institutional-csv-date" placeholder="日期留空則從檔名/內容辨識" maxlength="8" title="單檔時可填 YYYYMMDD，多檔時請檔名含日期" />
+                        <button type="button" class="btn-refresh-small" onclick="uploadInstitutionalCsv()">上傳</button>
+                        <span id="institutional-upload-status" class="institutional-upload-status"></span>
+                    </div>
+                </div>
+                <div id="institutional-charts" class="institutional-charts">
+                    <div class="loading">載入中...</div>
+                </div>
+            </section>
+        </div>
+
+        <!-- 重要比率走勢圖彈窗 -->
+        <div id="ratio-chart-modal" class="ratio-chart-modal" style="display: none;">
+            <div class="ratio-chart-modal-backdrop" onclick="closeRatioChartModal()"></div>
+            <div class="ratio-chart-modal-content">
+                <div class="ratio-chart-modal-header">
+                    <h3 id="ratio-chart-modal-title">比率走勢</h3>
+                    <button type="button" class="economic-note-modal-close" onclick="closeRatioChartModal()">×</button>
+                </div>
+                <div class="ratio-chart-modal-body">
+                    <div class="ratio-chart-loading" id="ratio-chart-loading">載入中...</div>
+                    <div class="ratio-chart-wrap" id="ratio-chart-wrap" style="display: none;">
+                        <canvas id="ratio-chart-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 個股/指數過去一年走勢圖彈窗（點擊卡片後才載入） -->
+        <div id="stock-chart-modal" class="ratio-chart-modal" style="display: none;">
+            <div class="ratio-chart-modal-backdrop" onclick="closeStockChartModal()"></div>
+            <div class="ratio-chart-modal-content">
+                <div class="ratio-chart-modal-header">
+                    <h3 id="stock-chart-modal-title">過去一年價格走勢</h3>
+                    <button type="button" class="economic-note-modal-close" onclick="closeStockChartModal()">×</button>
+                </div>
+                <div class="ratio-chart-modal-body">
+                    <div class="ratio-chart-loading" id="stock-chart-loading">載入中...</div>
+                    <div class="ratio-chart-wrap" id="stock-chart-wrap" style="display: none;">
+                        <canvas id="stock-chart-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 總經重要事記 -->
+        <section class="economic-section">
+            <div class="section-header">
+                <h2>📅 總經重要事記</h2>
+                <div class="section-controls">
+                    <span class="update-time" id="economic-update-time">-</span>
+                    <button class="btn-refresh-small" onclick="refreshEconomicCalendar()" title="更新總經事記">🔄 更新</button>
+                </div>
+            </div>
+            <div class="economic-bls-link-block">
+                <span class="economic-bls-label">資料來源（請每月至此查看確切發布日期）：</span>
+                <a href="https://www.bls.gov/schedule/2026/02_sched.htm" target="_blank" rel="noopener noreferrer" class="economic-bls-link">BLS 發布行事曆 2026年2月</a>
+                <span class="economic-bls-hint">（可改網址中年／月，例如 2026/03_sched.htm 為 3 月）</span>
+            </div>
+            <div id="economic-calendar" class="economic-calendar-container">
+                <div class="loading">載入中...</div>
+            </div>
+            <!-- 經濟事件筆記彈窗 -->
+            <div id="economic-note-modal" class="economic-note-modal" style="display: none;">
+                <div class="economic-note-modal-backdrop" onclick="closeEconomicNoteModal()"></div>
+                <div class="economic-note-modal-content">
+                    <div class="economic-note-modal-header">
+                        <h3 id="economic-note-modal-title">筆記</h3>
+                        <button type="button" class="economic-note-modal-close" onclick="closeEconomicNoteModal()">×</button>
+                    </div>
+                    <div class="economic-note-modal-body">
+                        <textarea id="economic-note-textarea" rows="6" placeholder="在此輸入筆記…"></textarea>
+                    </div>
+                    <div class="economic-note-modal-footer">
+                        <button type="button" class="btn-refresh-small" onclick="saveEconomicNote()">儲存</button>
+                        <button type="button" class="economic-note-btn-cancel" onclick="closeEconomicNoteModal()">取消</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 新聞聲量分析 -->
+        <section class="volume-section">
+            <div class="section-header">
+                <h2>📰 新聞聲量分析（前24小時）</h2>
+                <div class="section-controls">
+                    <span class="update-time" id="volume-update-time">-</span>
+                    <button class="btn-refresh-small" onclick="refreshNewsVolume()" title="更新新聞聲量">🔄 更新</button>
+                </div>
+            </div>
+            <p class="volume-desc" title="中文關鍵詞：台股、股票、股市；英文關鍵詞：stock, semiconductor, technology, earnings, market。合併統計標題與摘要中出現的公司名稱或代碼。">計算方式：以關鍵詞搜 24h 新聞（含中文台股＋英文美股），統計標題與摘要中出現的公司名稱或代碼。<strong>點「X 則新聞」可查看該公司新聞連結</strong>。</p>
+            <div id="news-volume" class="volume-container">
+                <div class="loading">載入中...</div>
+            </div>
+        </section>
+
+        <!-- 新聞連結彈窗（點擊聲量「X 則新聞」後顯示） -->
+        <div id="volume-news-modal" class="ratio-chart-modal" style="display: none;">
+            <div class="ratio-chart-modal-backdrop" onclick="closeVolumeNewsModal()"></div>
+            <div class="ratio-chart-modal-content">
+                <div class="ratio-chart-modal-header">
+                    <h3 id="volume-news-modal-title">新聞連結</h3>
+                    <button type="button" class="economic-note-modal-close" onclick="closeVolumeNewsModal()">×</button>
+                </div>
+                <div class="ratio-chart-modal-body">
+                    <div id="volume-news-modal-list" class="volume-news-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 盤前資料 -->
+        <section class="premarket-section">
+            <div class="section-header">
+                <h2>🌅 盤前資料</h2>
+            </div>
+            <div class="premarket-container">
+                <!-- 台股盤前/盤後 -->
+                <div class="premarket-market">
+                    <div class="premarket-market-header">
+                        <h3>🇹🇼 台股</h3>
+                        <div class="section-controls">
+                            <span class="update-time" id="taiwan-premarket-update-time">-</span>
+                            <button class="btn-refresh-small" onclick="refreshPremarketData('taiwan')" title="更新台股盤前資料">
+                                🔄 更新
+                            </button>
+                        </div>
+                    </div>
+                    <div id="taiwan-premarket" class="premarket-content">
+                        <div class="loading">載入中...</div>
+                    </div>
+                </div>
+                <!-- 美股盤前/盤後 -->
+                <div class="premarket-market">
+                    <div class="premarket-market-header">
+                        <h3>🇺🇸 美股</h3>
+                        <div class="section-controls">
+                            <span class="update-time" id="us-premarket-update-time">-</span>
+                            <button class="btn-refresh-small" onclick="refreshPremarketData('us')" title="更新美股盤前資料">
+                                🔄 更新
+                            </button>
+                        </div>
+                    </div>
+                    <div id="us-premarket" class="premarket-content">
+                        <div class="loading">載入中...</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 法人說明會專區 -->
+        <section class="ir-section">
+            <div class="section-header">
+                <h2>📅 法人說明會專區</h2>
+                <div class="section-controls">
+                    <span class="update-time" id="ir-update-time">-</span>
+                    <button class="btn-refresh-small" onclick="refreshIRMeetings()" title="更新法說會資料">🔄 更新</button>
+                </div>
+            </div>
+            <div id="ir-timeline" class="ir-timeline-container">
+                <div class="loading">載入中...</div>
+            </div>
+        </section>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
+
