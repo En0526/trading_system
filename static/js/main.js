@@ -49,7 +49,7 @@ async function loadMarketData(forceRefresh = false) {
     try {
         const url1 = baseUrl + '?sections=us_indices' + refreshQ;
         const controller1 = new AbortController();
-        const timeout1 = setTimeout(function() { controller1.abort(); }, 60000);
+        const timeout1 = setTimeout(function() { controller1.abort(); }, 90000);
         const response1 = await fetch(url1, { signal: controller1.signal });
         clearTimeout(timeout1);
         if (!response1.ok) throw new Error('HTTP ' + response1.status);
@@ -61,11 +61,14 @@ async function loadMarketData(forceRefresh = false) {
         }
     } catch (error) {
         console.error('載入美股指數錯誤:', error);
-        showError('載入市場數據時發生錯誤: ' + error.message);
+        var msg = (error.name === 'AbortError' || (error.message && error.message.indexOf('abort') !== -1))
+            ? '請求逾時（伺服器可能正在啟動或忙碌），請稍後按「更新」重試。'
+            : ('載入市場數據時發生錯誤: ' + (error.message || ''));
+        showError(msg);
         var containers = ['us-indices', 'us-stocks', 'tw-markets', 'international-markets', 'metals-spot', 'metals-futures', 'crypto-markets'];
         containers.forEach(function(id) {
             var el = document.getElementById(id);
-            if (el) el.innerHTML = '<div class="error">載入錯誤: ' + (error.message || '') + '</div>';
+            if (el) el.innerHTML = '<div class="error">載入錯誤: ' + (msg.replace(/^載入市場數據時發生錯誤: /, '') || '') + '</div>';
         });
         return;
     }
@@ -75,7 +78,7 @@ async function loadMarketData(forceRefresh = false) {
         const sections2 = 'us_stocks,tw_markets,international_markets,metals_spot,metals_futures,crypto,ratios';
         const url2 = baseUrl + '?sections=' + sections2;
         const controller2 = new AbortController();
-        const timeout2 = setTimeout(function() { controller2.abort(); }, 120000);
+        const timeout2 = setTimeout(function() { controller2.abort(); }, 180000);
         const response2 = await fetch(url2, { signal: controller2.signal });
         clearTimeout(timeout2);
         if (!response2.ok) throw new Error('HTTP ' + response2.status);
@@ -92,11 +95,14 @@ async function loadMarketData(forceRefresh = false) {
         }
     } catch (error) {
         console.error('載入其餘市場數據錯誤:', error);
-        showError('載入其餘市場數據時發生錯誤: ' + error.message);
+        var msg2 = (error.name === 'AbortError' || (error.message && error.message.indexOf('abort') !== -1))
+            ? '請求逾時（伺服器可能正在啟動或忙碌），請稍後按「更新」重試。'
+            : ('載入其餘市場數據時發生錯誤: ' + (error.message || ''));
+        showError(msg2);
         var ids = ['us-stocks', 'tw-markets', 'international-markets', 'metals-spot', 'metals-futures', 'crypto-markets'];
         ids.forEach(function(id) {
             var el = document.getElementById(id);
-            if (el) el.innerHTML = '<div class="error">載入錯誤: ' + (error.message || '') + '</div>';
+            if (el) el.innerHTML = '<div class="error">載入錯誤: ' + (msg2.replace(/^載入其餘市場數據時發生錯誤: /, '') || '') + '</div>';
         });
     }
 }
