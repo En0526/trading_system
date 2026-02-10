@@ -111,14 +111,6 @@ class Config:
         '^FCHI': '法國CAC40'
     }
 
-    # 重金屬專區：現貨報價（XAUUSD/XAGUSD 等，非 ETF）
-    METALS_SPOT = {
-        'XAUUSD=X': '黃金 XAUUSD',
-        'XAGUSD=X': '白銀 XAGUSD',
-        'XPTUSD=X': '鉑 XPTUSD',
-        'XPDUSD=X': '鈀 XPDUSD',
-    }
-
     # 重金屬專區：期貨（COMEX/紐約，有夜盤日盤）
     METALS_FUTURES = {
         'GC=F': '黃金期貨',

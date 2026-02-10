@@ -65,7 +65,7 @@ async function loadMarketData(forceRefresh = false) {
             ? '請求逾時（伺服器可能正在啟動或忙碌），請稍後按「更新」重試。'
             : ('載入市場數據時發生錯誤: ' + (error.message || ''));
         showError(msg);
-        var containers = ['us-indices', 'us-stocks', 'tw-markets', 'international-markets', 'metals-spot', 'metals-futures', 'crypto-markets'];
+        var containers = ['us-indices', 'us-stocks', 'tw-markets', 'international-markets', 'metals-futures', 'crypto-markets'];
         containers.forEach(function(id) {
             var el = document.getElementById(id);
             if (el) el.innerHTML = '<div class="error">載入錯誤: ' + (msg.replace(/^載入市場數據時發生錯誤: /, '') || '') + '</div>';
@@ -81,7 +81,7 @@ async function loadMarketData(forceRefresh = false) {
         });
     }
     var timeoutMsg = '請求逾時（伺服器可能正在啟動或忙碌），請稍後按「更新」重試。';
-    var idsAll = ['us-stocks', 'tw-markets', 'international-markets', 'metals-spot', 'metals-futures', 'crypto-markets'];
+    var idsAll = ['us-stocks', 'tw-markets', 'international-markets', 'metals-futures', 'crypto-markets'];
 
     // 2a：美股個股 + 台股（標的多、最吃時間）
     try {
@@ -103,7 +103,7 @@ async function loadMarketData(forceRefresh = false) {
 
     // 2b：國際、金屬、加密、比率
     try {
-        const url2b = baseUrl + '?sections=international_markets,metals_spot,metals_futures,crypto,ratios' + refreshQ;
+        const url2b = baseUrl + '?sections=international_markets,metals_futures,crypto,ratios' + refreshQ;
         const controller2b = new AbortController();
         const timeout2b = setTimeout(function() { controller2b.abort(); }, 120000);
         const response2b = await fetch(url2b, { signal: controller2b.signal });
@@ -111,12 +111,12 @@ async function loadMarketData(forceRefresh = false) {
         if (!response2b.ok) throw new Error('HTTP ' + response2b.status);
         const result2b = await response2b.json();
         if (result2b.success && result2b.data) mergeAndDisplayMarketData(result2b.data);
-        else setErrorForIds(['international-markets', 'metals-spot', 'metals-futures', 'crypto-markets'], result2b.error || '載入失敗');
+        else setErrorForIds(['international-markets', 'metals-futures', 'crypto-markets'], result2b.error || '載入失敗');
     } catch (err2b) {
         console.error('載入國際/金屬/加密/比率錯誤:', err2b);
         var isAbort2 = err2b.name === 'AbortError' || (err2b.message && err2b.message.indexOf('abort') !== -1);
         showError(isAbort2 ? timeoutMsg : ('載入國際/金屬/加密/比率失敗: ' + (err2b.message || '')));
-        setErrorForIds(['international-markets', 'metals-spot', 'metals-futures', 'crypto-markets'], isAbort2 ? timeoutMsg : (err2b.message || ''));
+        setErrorForIds(['international-markets', 'metals-futures', 'crypto-markets'], isAbort2 ? timeoutMsg : (err2b.message || ''));
     }
 }
 
@@ -244,16 +244,6 @@ function displayMarketData(data) {
         }
     }
 
-    // 重金屬專區：現貨；僅在 API 已回傳該區塊時更新
-    if (data && data.metals_spot !== undefined) {
-        if (Object.keys(data.metals_spot).length > 0) {
-            window._lastMetalsSpotData = data.metals_spot;
-            displayMarketSection('metals-spot', data.metals_spot, null, false, false, true, 'percentDesc', false, true);
-        } else {
-            const container = document.getElementById('metals-spot');
-            if (container) container.innerHTML = '<div class="loading">暫無現貨/ETF 數據</div>';
-        }
-    }
     // 重金屬專區：期貨；僅在 API 已回傳該區塊時更新
     if (data && data.metals_futures !== undefined) {
         if (Object.keys(data.metals_futures).length > 0) {
@@ -569,7 +559,6 @@ function displayMarketSection(containerId, markets, sectionTitle = null, useScro
         const sortCallbackMap = {
             'us-stocks': 'applyUsStocksSort',
             'tw-markets': 'applyTwMarketsSort',
-            'metals-spot': 'applyMetalsSpotSort',
             'metals-futures': 'applyMetalsFuturesSort',
             'crypto-markets': 'applyCryptoSort'
         };
@@ -707,13 +696,6 @@ function applyTwMarketsSort(sortBy) {
     const data = window._lastTwMarketsData;
     if (!data) return;
     displayMarketSection('tw-markets', data, '台股', false, false, true, sortBy, false, true);
-}
-
-// 重金屬現貨：切換排序後重新顯示
-function applyMetalsSpotSort(sortBy) {
-    const data = window._lastMetalsSpotData;
-    if (!data) return;
-    displayMarketSection('metals-spot', data, null, false, false, true, sortBy, false, true);
 }
 
 // 重金屬期貨：切換排序後重新顯示

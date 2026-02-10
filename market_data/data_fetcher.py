@@ -550,15 +550,7 @@ class MarketDataFetcher:
         except Exception:
             metals_session_et = ''
 
-        def run_metals_spot():
-            out = self.get_multiple_markets(getattr(Config, 'METALS_SPOT', {}))
-            if not out and getattr(Config, 'METALS_SPOT', None):
-                fallback = {'GC=F': '黃金(期貨價)', 'SI=F': '白銀(期貨價)', 'PL=F': '鉑(期貨價)', 'PA=F': '鈀(期貨價)'}
-                out = self.get_multiple_markets(fallback)
-            return out
-
         all_tasks = {
-            'metals_spot': run_metals_spot,
             'metals_futures_raw': lambda: self.get_multiple_markets(getattr(Config, 'METALS_FUTURES', {})),
             'crypto': lambda: self.get_multiple_markets(getattr(Config, 'CRYPTO', {})),
             'us_stocks': lambda: self.get_multiple_markets(Config.US_STOCKS),
@@ -590,7 +582,6 @@ class MarketDataFetcher:
                     else:
                         out[k] = {} if k != 'metals_futures_raw' else {}
 
-        metals_spot = out.get('metals_spot', {})
         metals_futures_raw = out.get('metals_futures_raw', {})
         metals_futures = {sym: dict(d, session=session) for sym, d in metals_futures_raw.items()}
         crypto = out.get('crypto', {})
@@ -647,8 +638,6 @@ class MarketDataFetcher:
             summary['earnings_upcoming_tw'] = earnings_list_tw
         if sections is None or 'international_markets' in sections:
             summary['international_markets'] = international_markets
-        if sections is None or 'metals_spot' in sections:
-            summary['metals_spot'] = metals_spot
         if sections is None or 'metals_futures' in sections or 'metals_futures_raw' in (out or {}):
             summary['metals_futures'] = metals_futures
             summary['metals_session'] = session
@@ -662,7 +651,6 @@ class MarketDataFetcher:
             'us_stocks': getattr(Config, 'US_STOCKS', {}),
             'tw_markets': getattr(Config, 'TW_MARKETS', {}),
             'international_markets': getattr(Config, 'INTERNATIONAL_MARKETS', {}),
-            'metals_spot': getattr(Config, 'METALS_SPOT', {}),
             'metals_futures': getattr(Config, 'METALS_FUTURES', {}),
             'crypto': getattr(Config, 'CRYPTO', {}),
         }
