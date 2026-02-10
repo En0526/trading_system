@@ -17,13 +17,23 @@ document.addEventListener('DOMContentLoaded', function() {
     loadInstitutionalNet(true);
 });
 
+// 區塊顯示順序：依此順序更新畫面，避免資料回傳先後造成區塊亂跳
+var MARKET_SECTION_ORDER = ['us_indices', 'us_stocks', 'tw_markets', 'international_markets', 'metals_futures', 'crypto', 'ratios'];
+
 // 合併 API 回傳的區塊到總快取並更新畫面
 function mergeAndDisplayMarketData(newData) {
     window._marketDataCache = window._marketDataCache || {};
     if (newData && typeof newData === 'object') {
-        Object.keys(newData).forEach(function(k) {
+        MARKET_SECTION_ORDER.forEach(function(k) {
             if (newData[k] !== undefined) window._marketDataCache[k] = newData[k];
         });
+        if (newData.timestamp !== undefined) window._marketDataCache.timestamp = newData.timestamp;
+        if (newData.earnings_upcoming !== undefined) window._marketDataCache.earnings_upcoming = newData.earnings_upcoming;
+        if (newData.earnings_upcoming_tw !== undefined) window._marketDataCache.earnings_upcoming_tw = newData.earnings_upcoming_tw;
+        if (newData.metals_session !== undefined) window._marketDataCache.metals_session = newData.metals_session;
+        if (newData.metals_session_et !== undefined) window._marketDataCache.metals_session_et = newData.metals_session_et;
+        if (newData.skipped_symbols !== undefined) window._marketDataCache.skipped_symbols = newData.skipped_symbols;
+        if (newData.ratios !== undefined) window._marketDataCache.ratios = newData.ratios;
     }
     displayMarketData(window._marketDataCache);
     if (newData && newData.timestamp) {
