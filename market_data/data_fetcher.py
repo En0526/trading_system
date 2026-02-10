@@ -2,9 +2,9 @@
 市場數據獲取模組
 """
 import logging
-# 抑制 yfinance 對 404 / quote not found 的日誌，避免 log 刷屏（標的仍會靜默跳過，僅回傳有資料者）
+# 抑制 yfinance 對 404、quote not found、No earnings、possibly delisted 等日誌
 _log_yf = logging.getLogger('yfinance')
-_log_yf.setLevel(logging.WARNING)
+_log_yf.setLevel(logging.ERROR)
 _log_yf.propagate = False
 
 import yfinance as yf
@@ -15,7 +15,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import pytz
 from config import Config
-from market_data.finnhub_client import get_multiple_quotes as finnhub_get_multiple
+from market_data.finnhub_client import (
+    get_multiple_quotes as finnhub_get_multiple,
+    get_earnings_calendar as finnhub_get_earnings_calendar,
+)
 from market_data.binance_client import get_multiple_crypto as binance_get_multiple
 from market_data.twelvedata_client import get_multiple_metals as twelvedata_get_metals
 
@@ -430,6 +433,7 @@ class MarketDataFetcher:
     def get_earnings_calendar(self, days_ahead: int = 60, force_refresh: bool = False) -> Dict[str, Dict]:
         """
         取得美股接下來 N 天內的財報公布日（依 Config.US_STOCKS）。
+        有 FINNHUB_API_KEY 時用 Finnhub（一次請求、含 BRK.B 等）；否則 fallback yfinance。
         回傳 { symbol: {'date': 'YYYY-MM-DD', 'days_until': int, 'name': str}, ... }
         """
         now = time.time()
@@ -439,6 +443,17 @@ class MarketDataFetcher:
             tz_et = pytz.timezone('US/Eastern')
             today = datetime.now(tz_et).date()
             end_date = today + timedelta(days=days_ahead)
+            api_key = getattr(Config, 'FINNHUB_API_KEY', None) or ''
+            if api_key:
+                result = finnhub_get_earnings_calendar(
+                    api_key,
+                    today.strftime('%Y-%m-%d'),
+                    end_date.strftime('%Y-%m-%d'),
+                    Config.US_STOCKS,
+                )
+                self._earnings_cache = result
+                self._earnings_cache_time = now
+                return result
             result = {}
             for symbol, name in Config.US_STOCKS.items():
                 try:
@@ -446,7 +461,6 @@ class MarketDataFetcher:
                     ed = ticker.get_earnings_dates()
                     if ed is None or ed.empty:
                         continue
-                    # 指數為財報日（可能帶時區）
                     dates = ed.index
                     next_date = None
                     for d in dates:
@@ -468,8 +482,7 @@ class MarketDataFetcher:
                             'name': name,
                         }
                     time.sleep(0.12)
-                except Exception as e:
-                    print(f"Earnings date fetch skip {symbol}: {e}")
+                except Exception:
                     continue
             self._earnings_cache = result
             self._earnings_cache_time = now
@@ -659,22 +672,6 @@ class MarketDataFetcher:
                     })
             earnings_list.sort(key=lambda x: (x['date'], x['symbol']))
 
-        earnings_list_tw = []
-        if tw_markets and (sections is None or 'tw_markets' in sections):
-            earnings_cal_tw = self.get_earnings_calendar_tw(days_ahead=60)
-            for symbol, data in tw_markets.items():
-                if symbol in earnings_cal_tw:
-                    ec = earnings_cal_tw[symbol]
-                    data['earnings_date'] = ec['date']
-                    data['earnings_days_until'] = ec['days_until']
-                    earnings_list_tw.append({
-                        'symbol': symbol,
-                        'name': data.get('display_name') or data.get('name') or ec.get('name', symbol),
-                        'date': ec['date'],
-                        'days_until': ec['days_until'],
-                    })
-            earnings_list_tw.sort(key=lambda x: (x['date'], x['symbol']))
-
         summary = {
             'timestamp': datetime.now(timezone.utc).isoformat(),
         }
@@ -687,7 +684,6 @@ class MarketDataFetcher:
             summary['earnings_upcoming'] = earnings_list
         if sections is None or 'tw_markets' in sections:
             summary['tw_markets'] = tw_markets
-            summary['earnings_upcoming_tw'] = earnings_list_tw
         if sections is None or 'international_markets' in sections:
             summary['international_markets'] = international_markets
         if sections is None or 'metals_futures' in sections or 'metals_futures_raw' in (out or {}):

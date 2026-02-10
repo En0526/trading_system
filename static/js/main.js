@@ -44,7 +44,6 @@ function mergeAndDisplayMarketData(newData) {
         });
         if (newData.timestamp !== undefined) window._marketDataCache.timestamp = newData.timestamp;
         if (newData.earnings_upcoming !== undefined) window._marketDataCache.earnings_upcoming = newData.earnings_upcoming;
-        if (newData.earnings_upcoming_tw !== undefined) window._marketDataCache.earnings_upcoming_tw = newData.earnings_upcoming_tw;
         if (newData.metals_session !== undefined) window._marketDataCache.metals_session = newData.metals_session;
         if (newData.metals_session_et !== undefined) window._marketDataCache.metals_session_et = newData.metals_session_et;
         if (newData.skipped_symbols !== undefined) window._marketDataCache.skipped_symbols = newData.skipped_symbols;
@@ -178,10 +177,17 @@ function displayMarketData(data) {
     var skippedEl = document.getElementById('skipped-symbols-hint');
     if (skippedEl) {
         if (data && data.skipped_symbols && data.skipped_symbols.length > 0) {
-            var parts = data.skipped_symbols.map(function (s) {
-                return (s.symbol || s.name) + (s.section ? ' (' + s.section + ')' : '');
-            });
-            skippedEl.innerHTML = '⚠️ 以下標的暫無報價（可檢查代碼或環境）：<code>' + parts.join(', ') + '</code>';
+            var list = data.skipped_symbols;
+            var msg;
+            if (list.length > 20) {
+                msg = '⚠️ 多數標的暫無報價（多為 Yahoo 對雲端 IP 限流或阻擋，非代碼錯誤）。請稍後重試或於本機使用。';
+            } else {
+                var parts = list.map(function (s) {
+                    return (s.symbol || s.name) + (s.section ? ' (' + s.section + ')' : '');
+                });
+                msg = '⚠️ 以下標的暫無報價（可檢查代碼或環境）：<code>' + parts.join(', ') + '</code>';
+            }
+            skippedEl.innerHTML = msg;
             skippedEl.classList.remove('hidden');
             skippedEl.setAttribute('aria-hidden', 'false');
         } else {
@@ -230,25 +236,6 @@ function displayMarketData(data) {
         }
     }
     
-    // 台股即將公布財報（60 天內）；僅在 API 已回傳該區塊時更新
-    if (data && data.earnings_upcoming_tw !== undefined) {
-        const twEarningsEl = document.getElementById('tw-earnings-calendar');
-        if (twEarningsEl) {
-            if (data.earnings_upcoming_tw && data.earnings_upcoming_tw.length > 0) {
-                const list = data.earnings_upcoming_tw.slice(0, 30).map(function (e) {
-                    return '<span class="earnings-chip" title="' + (e.date || '') + '">' +
-                        (e.name || e.symbol) + ' <strong>' + formatEarningsDate(e.date) + '</strong>' +
-                        (e.days_until !== undefined ? ' <em>(' + e.days_until + ' 天後)</em>' : '') + '</span>';
-                }).join('');
-                twEarningsEl.innerHTML = '<div class="earnings-calendar-hint">📅 接下來 60 天內公布財報：</div><div class="earnings-chips">' + list + '</div>';
-                twEarningsEl.classList.remove('hidden');
-            } else {
-                twEarningsEl.innerHTML = '';
-                twEarningsEl.classList.add('hidden');
-            }
-        }
-    }
-
     // 顯示台股；僅在 API 已回傳該區塊時更新
     if (data && data.tw_markets !== undefined) {
         if (Object.keys(data.tw_markets).length > 0) {

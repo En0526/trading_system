@@ -94,3 +94,72 @@ def get_multiple_quotes(
             out[symbol] = d
         time.sleep(delay_seconds)
     return out
+
+
+def get_earnings_calendar(
+    api_key: str,
+    from_date: str,
+    to_date: str,
+    symbols_display: Dict[str, str],
+) -> Dict[str, Dict]:
+    """
+    取得財報日曆。一次請求取得區間內全部，再篩出我們要的 symbol。
+    from_date / to_date: YYYY-MM-DD
+    symbols_display: Config.US_STOCKS 格式 { 'AAPL': 'Apple', 'BRK.B': '...', ... }
+    回傳 { symbol: {'date': 'YYYY-MM-DD', 'days_until': int, 'name': str}, ... }
+    """
+    if not api_key or not api_key.strip():
+        return {}
+    url = "https://finnhub.io/api/v1/calendar/earnings"
+    try:
+        r = requests.get(
+            url,
+            params={"from": from_date, "to": to_date, "token": api_key},
+            timeout=15,
+        )
+        if r.status_code == 429:
+            return {}
+        r.raise_for_status()
+        data = r.json()
+    except Exception as e:
+        print(f"Finnhub earnings calendar: {e}")
+        return {}
+    # Finnhub 回傳 { "earningsCalendar": [ { "symbol": "AAPL", "date": "2026-02-28", ... }, ... ] }
+    items = data.get("earningsCalendar") if isinstance(data, dict) else []
+    if not isinstance(items, list):
+        return {}
+    # 還原 symbol：Finnhub 用 BRK-B，我們 key 是 BRK.B
+    def to_config_symbol(s: str) -> str:
+        if not s:
+            return s
+        for cfg, fh in FINNHUB_INDEX_MAP.items():
+            if fh == s or fh.replace(".", "-") == s:
+                return cfg
+        return s.replace("-", ".") if "BRK" in s.upper() else s
+    today = datetime.now(timezone.utc).date()
+    result = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        sym = item.get("symbol")
+        d = item.get("date")
+        if not sym or not d:
+            continue
+        sym_key = to_config_symbol(sym)
+        if sym_key not in symbols_display:
+            continue
+        try:
+            ed = datetime.strptime(d[:10], "%Y-%m-%d").date()
+        except Exception:
+            continue
+        days_until = (ed - today).days
+        if days_until < 0:
+            continue
+        if sym_key in result and result[sym_key]["date"] < d[:10]:
+            continue
+        result[sym_key] = {
+            "date": d[:10],
+            "days_until": days_until,
+            "name": symbols_display.get(sym_key, sym_key),
+        }
+    return result

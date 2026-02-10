@@ -21,7 +21,7 @@ class Config:
         'IWM': 'Russell 2000'
     }
     
-    # 美股主要公司（含半導體設備、運算、Palantir 等）
+    # 美股主要公司（偏科技、半導體、大型軟體；已移除約 8 檔非科技/較小）
     US_STOCKS = {
         'AAPL': 'Apple',
         'MSFT': 'Microsoft',
@@ -37,27 +37,17 @@ class Config:
         'WMT': 'Walmart',
         'JPM': 'JPMorgan Chase',
         'MA': 'Mastercard',
-        'PG': 'Procter & Gamble',
-        'HD': 'Home Depot',
-        'DIS': 'Disney',
-        'BAC': 'Bank of America',
         'ADBE': 'Adobe',
         'NFLX': 'Netflix',
         'CRM': 'Salesforce',
-        'PYPL': 'PayPal',
         'INTC': 'Intel',
-        'CMCSA': 'Comcast',
-        'PEP': 'PepsiCo',
-        'COST': 'Costco',
         'TMO': 'Thermo Fisher',
         'AVGO': 'Broadcom',
-        'ABBV': 'AbbVie',
         'CSCO': 'Cisco',
         'ORCL': 'Oracle',
         'TSM': 'TSMC (ADR)',
         'AMD': 'AMD',
         'UMC': '聯電 (ADR)',
-        # Palantir、半導體設備、EDA、邊緣/雲端運算
         'PLTR': 'Palantir',
         'ASML': 'ASML',
         'LRCX': 'Lam Research',
@@ -87,8 +77,6 @@ class Config:
         '2408.TW': '南亞科',
         '2344.TW': '華邦電',
         '2337.TW': '旺宏',
-        '8299.TW': '群聯',
-        '3260.TW': '威剛',
         '3006.TW': '晶豪科',
         # PCB 相關
         '3037.TW': '欣興',
