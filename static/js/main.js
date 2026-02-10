@@ -73,37 +73,50 @@ async function loadMarketData(forceRefresh = false) {
         return;
     }
 
-    // 第二階段：其餘區塊（美股個股、台股、國際、金屬、加密、比率）一次拉取
-    try {
-        const sections2 = 'us_stocks,tw_markets,international_markets,metals_spot,metals_futures,crypto,ratios';
-        const url2 = baseUrl + '?sections=' + sections2;
-        const controller2 = new AbortController();
-        const timeout2 = setTimeout(function() { controller2.abort(); }, 180000);
-        const response2 = await fetch(url2, { signal: controller2.signal });
-        clearTimeout(timeout2);
-        if (!response2.ok) throw new Error('HTTP ' + response2.status);
-        const result2 = await response2.json();
-        if (result2.success && result2.data) {
-            mergeAndDisplayMarketData(result2.data);
-        } else {
-            showError('載入其餘市場數據失敗: ' + (result2.error || '未知錯誤'));
-            var ids = ['us-stocks', 'tw-markets', 'international-markets', 'metals-spot', 'metals-futures', 'crypto-markets'];
-            ids.forEach(function(id) {
-                var el = document.getElementById(id);
-                if (el) el.innerHTML = '<div class="error">載入失敗</div>';
-            });
-        }
-    } catch (error) {
-        console.error('載入其餘市場數據錯誤:', error);
-        var msg2 = (error.name === 'AbortError' || (error.message && error.message.indexOf('abort') !== -1))
-            ? '請求逾時（伺服器可能正在啟動或忙碌），請稍後按「更新」重試。'
-            : ('載入其餘市場數據時發生錯誤: ' + (error.message || ''));
-        showError(msg2);
-        var ids = ['us-stocks', 'tw-markets', 'international-markets', 'metals-spot', 'metals-futures', 'crypto-markets'];
+    // 第二階段拆成兩批，避免單次請求過久逾時（Free 主機負載大時易超時）
+    function setErrorForIds(ids, msg) {
         ids.forEach(function(id) {
             var el = document.getElementById(id);
-            if (el) el.innerHTML = '<div class="error">載入錯誤: ' + (msg2.replace(/^載入其餘市場數據時發生錯誤: /, '') || '') + '</div>';
+            if (el) el.innerHTML = '<div class="error">載入錯誤: ' + msg + '</div>';
         });
+    }
+    var timeoutMsg = '請求逾時（伺服器可能正在啟動或忙碌），請稍後按「更新」重試。';
+    var idsAll = ['us-stocks', 'tw-markets', 'international-markets', 'metals-spot', 'metals-futures', 'crypto-markets'];
+
+    // 2a：美股個股 + 台股（標的多、最吃時間）
+    try {
+        const url2a = baseUrl + '?sections=us_stocks,tw_markets' + refreshQ;
+        const controller2a = new AbortController();
+        const timeout2a = setTimeout(function() { controller2a.abort(); }, 120000);
+        const response2a = await fetch(url2a, { signal: controller2a.signal });
+        clearTimeout(timeout2a);
+        if (!response2a.ok) throw new Error('HTTP ' + response2a.status);
+        const result2a = await response2a.json();
+        if (result2a.success && result2a.data) mergeAndDisplayMarketData(result2a.data);
+        else setErrorForIds(['us-stocks', 'tw-markets'], result2a.error || '載入失敗');
+    } catch (err2a) {
+        console.error('載入美股/台股錯誤:', err2a);
+        var isAbort = err2a.name === 'AbortError' || (err2a.message && err2a.message.indexOf('abort') !== -1);
+        showError(isAbort ? timeoutMsg : ('載入美股/台股失敗: ' + (err2a.message || '')));
+        setErrorForIds(['us-stocks', 'tw-markets'], isAbort ? timeoutMsg : (err2a.message || ''));
+    }
+
+    // 2b：國際、金屬、加密、比率
+    try {
+        const url2b = baseUrl + '?sections=international_markets,metals_spot,metals_futures,crypto,ratios' + refreshQ;
+        const controller2b = new AbortController();
+        const timeout2b = setTimeout(function() { controller2b.abort(); }, 120000);
+        const response2b = await fetch(url2b, { signal: controller2b.signal });
+        clearTimeout(timeout2b);
+        if (!response2b.ok) throw new Error('HTTP ' + response2b.status);
+        const result2b = await response2b.json();
+        if (result2b.success && result2b.data) mergeAndDisplayMarketData(result2b.data);
+        else setErrorForIds(['international-markets', 'metals-spot', 'metals-futures', 'crypto-markets'], result2b.error || '載入失敗');
+    } catch (err2b) {
+        console.error('載入國際/金屬/加密/比率錯誤:', err2b);
+        var isAbort2 = err2b.name === 'AbortError' || (err2b.message && err2b.message.indexOf('abort') !== -1);
+        showError(isAbort2 ? timeoutMsg : ('載入國際/金屬/加密/比率失敗: ' + (err2b.message || '')));
+        setErrorForIds(['international-markets', 'metals-spot', 'metals-futures', 'crypto-markets'], isAbort2 ? timeoutMsg : (err2b.message || ''));
     }
 }
 
@@ -997,12 +1010,13 @@ function updateLastUpdateTime() {
     // 已移除全局更新时间
 }
 
-// 更新區塊時間
+// 更新區塊時間（固定顯示台灣時間，後端送 UTC）
 function updateSectionTime(elementId, timestamp) {
     const element = document.getElementById(elementId);
     if (element && timestamp) {
         const date = new Date(timestamp);
         const timeString = date.toLocaleString('zh-TW', {
+            timeZone: 'Asia/Taipei',
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',

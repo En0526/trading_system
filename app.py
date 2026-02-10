@@ -26,7 +26,7 @@ from market_data.institutional_net import (
     try_parse_date_from_filename,
 )
 from config import Config
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 app = Flask(__name__)
@@ -93,7 +93,7 @@ def get_market_data():
             sections = [s.strip() for s in sections_param.split(',') if s.strip()]
         
         summary = data_fetcher.get_market_summary(sections=sections if sections else None)
-        summary['timestamp'] = datetime.now().isoformat()
+        summary['timestamp'] = datetime.now(timezone.utc).isoformat()
         return jsonify({
             'success': True,
             'data': summary
@@ -129,7 +129,7 @@ def get_economic_calendar():
         
         # 只有用户主动刷新时才从BLS爬取新数据
         calendar_data = economic_calendar.get_economic_calendar(force_refresh=refresh)
-        calendar_data['timestamp'] = datetime.now().isoformat()
+        calendar_data['timestamp'] = datetime.now(timezone.utc).isoformat()
         
         return jsonify({
             'success': True,
@@ -193,7 +193,7 @@ def get_news_volume():
     try:
         refresh = request.args.get('refresh', 'false').lower() == 'true'
         summary = volume_analyzer.get_volume_summary(refresh=refresh)
-        summary['timestamp'] = datetime.now().isoformat()
+        summary['timestamp'] = datetime.now(timezone.utc).isoformat()
         return jsonify({
             'success': True,
             'data': summary
@@ -210,7 +210,7 @@ def get_news_volume():
                 'top_companies': [],
                 'period': '24小時',
                 'total_companies': 0,
-                'timestamp': datetime.now().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }
         })
         response.status_code = 500
@@ -246,7 +246,7 @@ def get_premarket_data(market=None):
         summary = {
             'taiwan': taiwan_data,
             'us': us_data,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
         
         return jsonify({
@@ -287,7 +287,7 @@ def get_institutional_net():
     try:
         refresh = request.args.get('refresh', 'false').lower() == 'true'
         data = get_institutional_net_ytd(force_refresh=refresh)
-        data['timestamp'] = datetime.now().isoformat()
+        data['timestamp'] = datetime.now(timezone.utc).isoformat()
         data['uploaded_dates'] = list_uploaded_dates()
         return jsonify({'success': True, 'data': data})
     except Exception as e:
@@ -333,7 +333,7 @@ def upload_institutional_csv():
         return jsonify({
             'success': True,
             'data': {'saved_date': date_str, 'uploaded_dates': list_uploaded_dates()},
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -353,7 +353,7 @@ def get_ir_meetings():
             ir_fetcher.cache_time.clear()
         
         timeline = ir_fetcher.get_ir_timeline(months_ahead=3)
-        timeline['timestamp'] = datetime.now().isoformat()
+        timeline['timestamp'] = datetime.now(timezone.utc).isoformat()
         return jsonify({
             'success': True,
             'data': timeline
@@ -373,7 +373,7 @@ def get_ir_meetings():
                     'start': None,
                     'end': None
                 },
-                'timestamp': datetime.now().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }
         })
         response.status_code = 500

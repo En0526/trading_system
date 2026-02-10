@@ -9,7 +9,7 @@ _log_yf.propagate = False
 
 import yfinance as yf
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
@@ -154,7 +154,7 @@ class MarketDataFetcher:
                 'high': round(high_price, 2) if high_price else None,
                 'low': round(low_price, 2) if low_price else None,
                 'open': round(open_price, 2) if open_price else None,
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'history': hist.to_dict('records') if not hist.empty else []
             }
             
@@ -324,7 +324,7 @@ class MarketDataFetcher:
             time.sleep(0.1)
         out = {
             'ratios': ratios,
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
         }
         self.cache[cache_key] = out
         self.cache_time[cache_key] = time.time()
@@ -586,7 +586,7 @@ class MarketDataFetcher:
                     out[k] = future.result()
                 except Exception:
                     if k == 'ratios':
-                        out[k] = {'ratios': [], 'timestamp': datetime.now().isoformat()}
+                        out[k] = {'ratios': [], 'timestamp': datetime.now(timezone.utc).isoformat()}
                     else:
                         out[k] = {} if k != 'metals_futures_raw' else {}
 
@@ -633,7 +633,7 @@ class MarketDataFetcher:
             earnings_list_tw.sort(key=lambda x: (x['date'], x['symbol']))
 
         summary = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
         }
         if sections is None or 'ratios' in sections:
             summary['ratios'] = ratios_data
