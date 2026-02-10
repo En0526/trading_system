@@ -18,7 +18,7 @@ class NewsFetcher:
     def __init__(self):
         self.cache = {}
         self.cache_time = {}
-        self.cache_duration = 300  # 緩存5分鐘
+        self.cache_duration = 600  # 緩存10分鐘，減輕算力
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }

@@ -7,14 +7,29 @@ function formatEarningsDate(isoDate) {
     return (parseInt(m, 10) + '/' + parseInt(d, 10));
 }
 
-// 初始化：市場數據先用快取（避免其他電腦/慢速連線時因逾時顯示暫無數據），用戶可按「更新」強制刷新
+// 下方區塊載入順序（輕→重、依序發送，避免單一 worker 同時接多個重請求而 502）
+function runBelowSectionsInOrder(forceRefresh) {
+    forceRefresh = !!forceRefresh;
+    var delayMs = 400;
+    function next(i, list) {
+        if (i >= list.length) return Promise.resolve();
+        return list[i](forceRefresh).then(function() {
+            return new Promise(function(r) { setTimeout(r, delayMs); });
+        }).then(function() { return next(i + 1, list); }).catch(function(e) {
+            console.error('Below section load error:', e);
+            return next(i + 1, list);
+        });
+    }
+    var order = [loadEconomicCalendar, loadInstitutionalNet, loadIRMeetings, loadPremarketData, loadNewsVolume];
+    return next(0, order);
+}
+
+// 初始化：市場數據先載入；下方區塊延遲 2 秒後依固定順序「一個接一個」載入，首輪不強制 refresh 以減輕算力
 document.addEventListener('DOMContentLoaded', function() {
     loadMarketData(false);
-    loadEconomicCalendar(true);
-    loadNewsVolume(true);
-    loadPremarketData(true);
-    loadIRMeetings(true);
-    loadInstitutionalNet(true);
+    setTimeout(function() {
+        runBelowSectionsInOrder(false).catch(function(e) { console.error(e); });
+    }, 2000);
 });
 
 // 區塊顯示順序：依此順序更新畫面，避免資料回傳先後造成區塊亂跳

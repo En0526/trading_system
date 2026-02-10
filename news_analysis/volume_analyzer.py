@@ -26,7 +26,7 @@ class VolumeAnalyzer:
         """
         try:
             keywords = ['台股', '股票', '股市']
-            result = self.news_fetcher.get_news_volume_with_news(keywords, hours, max_news_per_company=50)
+            result = self.news_fetcher.get_news_volume_with_news(keywords, hours, max_news_per_company=30)
             volume_dict = result['volume']
             news_by_symbol = result.get('news_by_symbol', {})
             
@@ -61,7 +61,7 @@ class VolumeAnalyzer:
             聲量分析結果
         """
         try:
-            top_companies = self.get_top_companies_by_volume(hours=24, top_n=20)
+            top_companies = self.get_top_companies_by_volume(hours=24, top_n=15)
         except Exception as e:
             print(f"Error in get_top_companies_by_volume: {str(e)}")
             # 如果出錯，返回空列表

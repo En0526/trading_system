@@ -16,8 +16,8 @@ import time
 import pytz
 from config import Config
 
-# 並行取得時每批最大執行緒數（避免對 Yahoo 請求過猛）
-MAX_WORKERS = 12
+# 並行取得時每批最大執行緒數（降低可減輕單機負載與 Yahoo 壓力）
+MAX_WORKERS = 8
 
 class MarketDataFetcher:
     """市場數據獲取器"""
@@ -25,7 +25,7 @@ class MarketDataFetcher:
     def __init__(self):
         self.cache = {}
         self.cache_time = {}
-        self.cache_duration = 60  # 緩存60秒
+        self.cache_duration = 120  # 緩存2分鐘，減輕重複請求
         self._earnings_cache = None
         self._earnings_cache_time = 0
         self._earnings_cache_duration = 3600 * 6  # 財報行事曆緩存 6 小時
