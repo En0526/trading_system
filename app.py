@@ -202,8 +202,8 @@ def get_news_volume():
         import traceback
         error_msg = str(e)
         traceback.print_exc()
-        # 確保返回 JSON，即使出錯
-        response = jsonify({
+        # 回傳 200 + 空資料，避免前端只看到 502；前端可顯示 error 訊息
+        return jsonify({
             'success': False,
             'error': error_msg,
             'data': {
@@ -213,8 +213,6 @@ def get_news_volume():
                 'timestamp': datetime.now(timezone.utc).isoformat()
             }
         })
-        response.status_code = 500
-        return response
 
 @app.route('/api/premarket-data')
 @app.route('/api/premarket-data/<market>')
@@ -362,8 +360,8 @@ def get_ir_meetings():
         import traceback
         error_msg = str(e)
         traceback.print_exc()
-        # 確保返回 JSON，即使出錯
-        response = jsonify({
+        # 回傳 200 + 空資料，避免前端只看到 502；前端可顯示 error 訊息
+        return jsonify({
             'success': False,
             'error': error_msg,
             'data': {
@@ -376,8 +374,6 @@ def get_ir_meetings():
                 'timestamp': datetime.now(timezone.utc).isoformat()
             }
         })
-        response.status_code = 500
-        return response
 
 if __name__ == '__main__':
     app.run(debug=Config.DEBUG, host='0.0.0.0', port=Config.PORT)
