@@ -129,7 +129,24 @@ async function refreshMarketData(market) {
 // 顯示市場數據
 function displayMarketData(data) {
     console.log('displayMarketData called with:', data);
-    
+
+    // 無資料標的（404/環境差異）：顯示清單方便比對代碼
+    var skippedEl = document.getElementById('skipped-symbols-hint');
+    if (skippedEl) {
+        if (data && data.skipped_symbols && data.skipped_symbols.length > 0) {
+            var parts = data.skipped_symbols.map(function (s) {
+                return (s.symbol || s.name) + (s.section ? ' (' + s.section + ')' : '');
+            });
+            skippedEl.innerHTML = '⚠️ 以下標的暫無報價（可檢查代碼或環境）：<code>' + parts.join(', ') + '</code>';
+            skippedEl.classList.remove('hidden');
+            skippedEl.setAttribute('aria-hidden', 'false');
+        } else {
+            skippedEl.innerHTML = '';
+            skippedEl.classList.add('hidden');
+            skippedEl.setAttribute('aria-hidden', 'true');
+        }
+    }
+
     // 顯示美股指數；僅在 API 已回傳該區塊時更新
     if (data && data.us_indices !== undefined) {
         if (Object.keys(data.us_indices).length > 0) {

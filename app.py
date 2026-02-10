@@ -1,6 +1,15 @@
 """
 Trading System - 主應用程式
 """
+# 雲端（如 Render）上 Python 預設憑證路徑可能失敗，先強制使用 certifi 的憑證
+import os
+try:
+    import certifi
+    os.environ.setdefault('SSL_CERT_FILE', certifi.where())
+    os.environ.setdefault('REQUESTS_CA_BUNDLE', certifi.where())
+except ImportError:
+    pass
+
 from flask import Flask, render_template, jsonify
 from market_data.data_fetcher import MarketDataFetcher
 from timing.timing_selector import TimingSelector

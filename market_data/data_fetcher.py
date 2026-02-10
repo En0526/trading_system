@@ -1,6 +1,12 @@
 """
 市場數據獲取模組
 """
+import logging
+# 抑制 yfinance 對 404 / quote not found 的日誌，避免 log 刷屏（標的仍會靜默跳過，僅回傳有資料者）
+_log_yf = logging.getLogger('yfinance')
+_log_yf.setLevel(logging.WARNING)
+_log_yf.propagate = False
+
 import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
@@ -649,5 +655,30 @@ class MarketDataFetcher:
             summary['metals_session_et'] = metals_session_et
         if sections is None or 'crypto' in sections:
             summary['crypto'] = crypto
+
+        # 回傳「有請求但無資料」的標的，方便比對是否代碼錯誤或環境差異（如 Render 與本機）
+        section_to_config = {
+            'us_indices': getattr(Config, 'US_INDICES', {}),
+            'us_stocks': getattr(Config, 'US_STOCKS', {}),
+            'tw_markets': getattr(Config, 'TW_MARKETS', {}),
+            'international_markets': getattr(Config, 'INTERNATIONAL_MARKETS', {}),
+            'metals_spot': getattr(Config, 'METALS_SPOT', {}),
+            'metals_futures': getattr(Config, 'METALS_FUTURES', {}),
+            'crypto': getattr(Config, 'CRYPTO', {}),
+        }
+        skipped_symbols = []
+        for sec, config_dict in section_to_config.items():
+            result_dict = summary.get(sec)
+            if not isinstance(config_dict, dict) or not isinstance(result_dict, dict):
+                continue
+            requested = set(config_dict.keys())
+            got = set(result_dict.keys())
+            for sym in requested - got:
+                skipped_symbols.append({
+                    'symbol': sym,
+                    'section': sec,
+                    'name': config_dict.get(sym, sym),
+                })
+        summary['skipped_symbols'] = skipped_symbols
         return summary
 

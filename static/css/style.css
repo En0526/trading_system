@@ -1187,6 +1187,22 @@ header h1 {
     border: 1px solid #f5c6cb;
 }
 
+/* 無資料標的提示（Yahoo 404/環境差異時顯示，方便比對代碼） */
+.skipped-symbols-hint {
+    font-size: 13px;
+    color: #856404;
+    background: #fff3cd;
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    border: 1px solid #ffc107;
+    word-break: break-word;
+}
+.skipped-symbols-hint code {
+    font-size: 12px;
+    margin-left: 4px;
+}
+
 /* 新聞聲量區塊 */
 .volume-section {
     background: white;
