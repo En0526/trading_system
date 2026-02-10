@@ -145,6 +145,11 @@ class Config:
         {'id': 'btc_gold', 'name': '比特黃金比', 'num': 'BTC-USD', 'denom': 'GC=F', 'period': 'max', 'unit': '倍', 'desc': '1 BTC 等於幾盎司黃金'},
     ]
     
+    # 多資料源 API key（選填，未設則該區塊 fallback 用 yfinance）
+    FINNHUB_API_KEY = os.environ.get('FINNHUB_API_KEY', '').strip()
+    TWELVEDATA_API_KEY = os.environ.get('TWELVEDATA_API_KEY', '').strip()
+    # 加密一律用 Binance，無需 key
+
     # 數據更新間隔（秒）
     DATA_UPDATE_INTERVAL = 60
     

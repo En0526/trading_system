@@ -15,6 +15,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import pytz
 from config import Config
+from market_data.finnhub_client import get_multiple_quotes as finnhub_get_multiple
+from market_data.binance_client import get_multiple_crypto as binance_get_multiple
+from market_data.twelvedata_client import get_multiple_metals as twelvedata_get_metals
 
 # 並行取得時每批最大執行緒數（降低可減輕單機負載與 Yahoo 壓力）
 MAX_WORKERS = 8
@@ -196,6 +199,55 @@ class MarketDataFetcher:
                 except Exception:
                     pass
         return results
+
+    def _get_us_indices(self) -> Dict[str, Dict]:
+        """美股指數：Finnhub（有 key）或 yf fallback。"""
+        key = 'us_indices_finnhub'
+        if self._is_cache_valid(key):
+            return self.cache.get(key, {})
+        api_key = getattr(Config, 'FINNHUB_API_KEY', None) or ''
+        if api_key:
+            out = finnhub_get_multiple(api_key, getattr(Config, 'US_INDICES', {}))
+            self.cache[key] = out
+            self.cache_time[key] = time.time()
+            return out
+        return self.get_multiple_markets(getattr(Config, 'US_INDICES', {}))
+
+    def _get_us_stocks(self) -> Dict[str, Dict]:
+        """美股個股：Finnhub（有 key）或 yf fallback。"""
+        key = 'us_stocks_finnhub'
+        if self._is_cache_valid(key):
+            return self.cache.get(key, {})
+        api_key = getattr(Config, 'FINNHUB_API_KEY', None) or ''
+        if api_key:
+            out = finnhub_get_multiple(api_key, getattr(Config, 'US_STOCKS', {}))
+            self.cache[key] = out
+            self.cache_time[key] = time.time()
+            return out
+        return self.get_multiple_markets(Config.US_STOCKS)
+
+    def _get_crypto_binance(self) -> Dict[str, Dict]:
+        """加密貨幣：一律 Binance。"""
+        key = 'crypto_binance'
+        if self._is_cache_valid(key):
+            return self.cache.get(key, {})
+        out = binance_get_multiple(getattr(Config, 'CRYPTO', {}))
+        self.cache[key] = out
+        self.cache_time[key] = time.time()
+        return out
+
+    def _get_metals_twelvedata(self) -> Dict[str, Dict]:
+        """重金屬期貨：Twelve Data（有 key）或 yf fallback。"""
+        key = 'metals_twelvedata'
+        if self._is_cache_valid(key):
+            return self.cache.get(key, {})
+        api_key = getattr(Config, 'TWELVEDATA_API_KEY', None) or ''
+        if api_key:
+            out = twelvedata_get_metals(api_key, getattr(Config, 'METALS_FUTURES', {}))
+            self.cache[key] = out
+            self.cache_time[key] = time.time()
+            return out
+        return self.get_multiple_markets(getattr(Config, 'METALS_FUTURES', {}))
 
     def _fetch_hist(self, symbol: str, period: str = '20y') -> Optional[pd.Series]:
         """取得收盤價歷史序列，用於計算比率。"""
@@ -551,12 +603,12 @@ class MarketDataFetcher:
             metals_session_et = ''
 
         all_tasks = {
-            'metals_futures_raw': lambda: self.get_multiple_markets(getattr(Config, 'METALS_FUTURES', {})),
-            'crypto': lambda: self.get_multiple_markets(getattr(Config, 'CRYPTO', {})),
-            'us_stocks': lambda: self.get_multiple_markets(Config.US_STOCKS),
+            'us_indices': lambda: self._get_us_indices(),
+            'us_stocks': lambda: self._get_us_stocks(),
             'tw_markets': lambda: self.get_multiple_markets(Config.TW_MARKETS),
-            'us_indices': lambda: self.get_multiple_markets(Config.US_INDICES),
             'international_markets': lambda: self.get_multiple_markets(Config.INTERNATIONAL_MARKETS),
+            'metals_futures_raw': lambda: self._get_metals_twelvedata(),
+            'crypto': lambda: self._get_crypto_binance(),
             'ratios': lambda: self.get_ratios_summary(),
         }
         if sections is not None:
