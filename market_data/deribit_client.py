@@ -1,11 +1,12 @@
 """
 Deribit 加密貨幣報價（公開 API，無需 key）
-使用交易所永續合約 ticker 或 index price
+BTC/ETH/SOL 用 Deribit 永續 ticker；其餘用 yfinance（有 24h 漲跌）
 """
 from typing import Dict, Optional
 from datetime import datetime, timezone
 
 import requests
+import yfinance as yf
 
 DERIBIT_API = "https://www.deribit.com/api/v2"
 
@@ -14,18 +15,6 @@ TICKER_INSTRUMENTS = {
     "BTC-USD": "BTC-PERPETUAL",
     "ETH-USD": "ETH-PERPETUAL",
     "SOL-USD": "SOL-PERPETUAL",
-}
-# Config 鍵 -> Deribit index_name（用於僅有 index 的幣種）
-INDEX_NAMES = {
-    "BTC-USD": "btc_usd",
-    "ETH-USD": "eth_usd",
-    "BNB-USD": "bnb_usdc",
-    "XRP-USD": "xrp_usdc",
-    "SOL-USD": "sol_usdt",
-    "DOGE-USD": "doge_usdc",
-    "ADA-USD": "ada_usdc",
-    "AVAX-USD": "avax_usdc",
-    "LINK-USD": "link_usdc",
 }
 
 
@@ -74,50 +63,46 @@ def _get_ticker(instrument_name: str) -> Optional[Dict]:
         return None
 
 
-def _get_index_price(index_name: str) -> Optional[Dict]:
-    """取得 index price（僅價格，無 24h 變化）。"""
+def _get_yf_crypto(symbol: str) -> Optional[Dict]:
+    """yfinance 取得加密貨幣（含 24h 漲跌）。"""
     try:
-        r = requests.get(
-            f"{DERIBIT_API}/public/get_index_price",
-            params={"index_name": index_name},
-            timeout=10,
-        )
-        if r.status_code != 200:
+        ticker = yf.Ticker(symbol)
+        info = ticker.info or {}
+        hist = ticker.history(period="2d", interval="1d")
+        if hist is None or hist.empty or "Close" not in hist.columns:
             return None
-        data = r.json()
-        if "result" not in data:
-            return None
-        price = float(data["result"].get("index_price", 0))
-        if price <= 0:
-            return None
+        current = float(hist["Close"].iloc[-1])
+        prev = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else current
+        change = current - prev
+        pct = (change / prev * 100) if prev else 0
+        h = hist["High"].iloc[-1] if "High" in hist.columns else current
+        lo = hist["Low"].iloc[-1] if "Low" in hist.columns else current
+        vol = int(hist["Volume"].iloc[-1]) if "Volume" in hist.columns else 0
         return {
-            "current_price": round(price, 2),
-            "previous_close": round(price, 2),
-            "change": 0,
-            "change_percent": 0,
-            "volume": 0,
-            "high": round(price, 2),
-            "low": round(price, 2),
-            "open": round(price, 2),
+            "current_price": round(current, 2),
+            "previous_close": round(prev, 2),
+            "change": round(change, 2),
+            "change_percent": round(pct, 2),
+            "volume": vol,
+            "high": round(float(h), 2),
+            "low": round(float(lo), 2),
+            "open": round(prev, 2),
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "history": [],
         }
     except Exception as e:
-        print(f"Deribit index {index_name}: {e}")
+        print(f"yfinance crypto {symbol}: {e}")
         return None
 
 
 def get_single_crypto(config_key: str) -> Optional[Dict]:
-    """取得單一加密貨幣報價。config_key 如 BTC-USD。"""
+    """取得單一加密貨幣報價。config_key 如 BTC-USD。BTC/ETH/SOL 用 Deribit ticker，其餘用 yfinance（有漲跌）。"""
     inst = TICKER_INSTRUMENTS.get(config_key)
     if inst:
         out = _get_ticker(inst)
         if out:
             return out
-    idx = INDEX_NAMES.get(config_key)
-    if idx:
-        return _get_index_price(idx)
-    return None
+    return _get_yf_crypto(config_key)
 
 
 def get_multiple_crypto(symbols_display: Dict[str, str]) -> Dict[str, Dict]:

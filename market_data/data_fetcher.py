@@ -20,8 +20,6 @@ from market_data.finnhub_client import (
     get_earnings_calendar as finnhub_get_earnings_calendar,
 )
 from market_data.deribit_client import get_multiple_crypto as deribit_get_multiple
-from market_data.twelvedata_client import get_multiple_metals as twelvedata_get_metals
-
 # 並行取得時每批最大執行緒數（降低可減輕單機負載與 Yahoo 壓力）
 MAX_WORKERS = 8
 
@@ -239,19 +237,6 @@ class MarketDataFetcher:
         self.cache_time[key] = time.time()
         return out
 
-    def _get_metals_twelvedata(self) -> Dict[str, Dict]:
-        """重金屬期貨：Twelve Data（有 key）或 yf fallback。"""
-        key = 'metals_twelvedata'
-        if self._is_cache_valid(key):
-            return self.cache.get(key, {})
-        api_key = getattr(Config, 'TWELVEDATA_API_KEY', None) or ''
-        if api_key:
-            out = twelvedata_get_metals(api_key, getattr(Config, 'METALS_FUTURES', {}))
-            self.cache[key] = out
-            self.cache_time[key] = time.time()
-            return out
-        return self.get_multiple_markets(getattr(Config, 'METALS_FUTURES', {}))
-
     def _fetch_hist(self, symbol: str, period: str = '20y') -> Optional[pd.Series]:
         """取得收盤價歷史序列，用於計算比率。"""
         try:
@@ -451,9 +436,11 @@ class MarketDataFetcher:
                     end_date.strftime('%Y-%m-%d'),
                     Config.US_STOCKS,
                 )
-                self._earnings_cache = result
-                self._earnings_cache_time = now
-                return result
+                if result:
+                    self._earnings_cache = result
+                    self._earnings_cache_time = now
+                    return result
+                # Finnhub 回傳空（429、錯誤等）時 fallback yfinance
             result = {}
             for symbol, name in Config.US_STOCKS.items():
                 try:
@@ -620,7 +607,7 @@ class MarketDataFetcher:
             'us_stocks': lambda: self._get_us_stocks(),
             'tw_markets': lambda: self.get_multiple_markets(Config.TW_MARKETS),
             'international_markets': lambda: self.get_multiple_markets(Config.INTERNATIONAL_MARKETS),
-            'metals_futures_raw': lambda: self._get_metals_twelvedata(),
+            'metals_futures_raw': lambda: self.get_multiple_markets(getattr(Config, 'METALS_FUTURES', {})),
             'crypto': lambda: self._get_crypto_deribit(),
             'ratios': lambda: self.get_ratios_summary(),
         }
