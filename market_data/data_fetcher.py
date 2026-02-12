@@ -138,6 +138,11 @@ class MarketDataFetcher:
                 low_price = info.get('regularMarketDayLow') or info.get('dayLow')
             if volume == 0 and info:
                 volume = info.get('regularMarketVolume') or info.get('volume') or 0
+            if volume == 0 and not hist.empty and 'Volume' in hist.columns:
+                last = hist.iloc[-1]
+                vol_val = last.get('Volume', 0)
+                if vol_val and not (isinstance(vol_val, float) and (vol_val != vol_val)):
+                    volume = int(vol_val)
             
             # 如果還是沒有，使用當前價格作為備用
             if open_price is None:
@@ -201,18 +206,79 @@ class MarketDataFetcher:
                     pass
         return results
 
+    def _get_us_indices_yf_download(self, symbols: Dict[str, str]) -> Dict[str, Dict]:
+        """美股指數 yf.download 批次備援（雲端 IP 時 Ticker 常失敗，download 較穩定）。"""
+        if not symbols:
+            return {}
+        syms = list(symbols.keys())
+        try:
+            df = yf.download(syms, period='5d', interval='1d', group_by='ticker', auto_adjust=True, threads=False, progress=False)
+            if df is None or df.empty:
+                return {}
+            out = {}
+            for symbol, name in symbols.items():
+                try:
+                    if len(syms) == 1:
+                        sub = df
+                    else:
+                        if isinstance(df.columns, pd.MultiIndex):
+                            if symbol not in df.columns.get_level_values(0):
+                                continue
+                            sub = df[symbol].copy()
+                        else:
+                            sub = df
+                    if sub.empty:
+                        continue
+                    row = sub.iloc[-1]
+                    prev_row = sub.iloc[-2] if len(sub) >= 2 else None
+                    close = float(row.get('Close', 0) if hasattr(row, 'get') else row['Close'])
+                    prev = float(prev_row.get('Close', close)) if prev_row is not None else close
+                    change = close - prev if prev else 0
+                    change_pct = (change / prev * 100) if prev and prev != 0 else 0
+                    vol = int(row.get('Volume', 0) or 0)
+                    out[symbol] = {
+                        'symbol': symbol,
+                        'name': name,
+                        'current_price': round(close, 2),
+                        'previous_close': round(prev, 2),
+                        'change': round(change, 2),
+                        'change_percent': round(change_pct, 2),
+                        'volume': vol,
+                        'high': round(float(row.get('High', close)), 2) if row.get('High') not in (None, float('nan')) else None,
+                        'low': round(float(row.get('Low', close)), 2) if row.get('Low') not in (None, float('nan')) else None,
+                        'open': round(float(row.get('Open', close)), 2) if row.get('Open') not in (None, float('nan')) else None,
+                        'display_name': name,
+                        'timestamp': datetime.now(timezone.utc).isoformat(),
+                        'history': [],
+                    }
+                except Exception as e:
+                    print(f"yf.download parse {symbol}: {e}")
+                    continue
+            return out
+        except Exception as e:
+            print(f"yf.download indices: {e}")
+            return {}
+
     def _get_us_indices(self) -> Dict[str, Dict]:
-        """美股指數：Finnhub（有 key）或 yf fallback。"""
+        """美股指數：Finnhub（有 key）或 yf fallback；雲端常用 yf.download 較穩。"""
         key = 'us_indices_finnhub'
         if self._is_cache_valid(key):
             return self.cache.get(key, {})
+        symbols = getattr(Config, 'US_INDICES', {})
         api_key = getattr(Config, 'FINNHUB_API_KEY', None) or ''
         if api_key:
-            out = finnhub_get_multiple(api_key, getattr(Config, 'US_INDICES', {}))
+            out = finnhub_get_multiple(api_key, symbols)
+            if out:
+                self.cache[key] = out
+                self.cache_time[key] = time.time()
+                return out
+        out = self.get_multiple_markets(symbols)
+        if not out and symbols:
+            out = self._get_us_indices_yf_download(symbols)
+        if out:
             self.cache[key] = out
             self.cache_time[key] = time.time()
-            return out
-        return self.get_multiple_markets(getattr(Config, 'US_INDICES', {}))
+        return out
 
     def _get_us_stocks(self) -> Dict[str, Dict]:
         """美股個股：Finnhub（有 key）或 yf fallback。"""
@@ -645,6 +711,7 @@ class MarketDataFetcher:
         ratios_data = out.get('ratios') or (self.get_ratios_summary() if (sections is None or 'ratios' in (sections or [])) else {})
 
         earnings_list = []
+        earnings_list_tw = []
         if us_stocks and (sections is None or 'us_stocks' in sections):
             earnings_cal = self.get_earnings_calendar(days_ahead=60)
             for symbol, data in us_stocks.items():
@@ -659,6 +726,22 @@ class MarketDataFetcher:
                         'days_until': ec['days_until'],
                     })
             earnings_list.sort(key=lambda x: (x['date'], x['symbol']))
+        if tw_markets and (sections is None or 'tw_markets' in sections):
+            earnings_cal_tw = self.get_earnings_calendar_tw(days_ahead=60)
+            for symbol, data in tw_markets.items():
+                if symbol.startswith('^'):
+                    continue
+                if symbol in earnings_cal_tw:
+                    ec = earnings_cal_tw[symbol]
+                    data['earnings_date'] = ec['date']
+                    data['earnings_days_until'] = ec['days_until']
+                    earnings_list_tw.append({
+                        'symbol': symbol,
+                        'name': data.get('display_name') or data.get('name') or ec.get('name', symbol),
+                        'date': ec['date'],
+                        'days_until': ec['days_until'],
+                    })
+            earnings_list_tw.sort(key=lambda x: (x['date'], x['symbol']))
 
         summary = {
             'timestamp': datetime.now(timezone.utc).isoformat(),
@@ -672,6 +755,7 @@ class MarketDataFetcher:
             summary['earnings_upcoming'] = earnings_list
         if sections is None or 'tw_markets' in sections:
             summary['tw_markets'] = tw_markets
+            summary['earnings_upcoming_tw'] = earnings_list_tw
         etf_data = out.get('etf', {})
         if sections is None or 'international_markets' in sections:
             summary['international_markets'] = international_markets

@@ -64,10 +64,10 @@ class Config:
     # 兼容舊配置
     US_MARKETS = US_INDICES
     
-    # ETF 專區（美股 + 台股 ETF，yfinance）
+    # ETF 專區（美股 + 台股 ETF，yfinance，顯示中文名）
     ETF = {
-        'VOO': 'VOO S&P500',
-        'QQQ': 'QQQ NASDAQ100',
+        'VOO': '先鋒標普500',
+        'QQQ': '景順那斯達克100',
         '0050.TW': '元大台灣50',
         '00951.TW': '元大台灣50反1',
         '09809.TW': '新光標普電動車',

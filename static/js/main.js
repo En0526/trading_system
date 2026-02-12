@@ -44,6 +44,7 @@ function mergeAndDisplayMarketData(newData) {
         });
         if (newData.timestamp !== undefined) window._marketDataCache.timestamp = newData.timestamp;
         if (newData.earnings_upcoming !== undefined) window._marketDataCache.earnings_upcoming = newData.earnings_upcoming;
+        if (newData.earnings_upcoming_tw !== undefined) window._marketDataCache.earnings_upcoming_tw = newData.earnings_upcoming_tw;
         if (newData.metals_session !== undefined) window._marketDataCache.metals_session = newData.metals_session;
         if (newData.metals_session_et !== undefined) window._marketDataCache.metals_session_et = newData.metals_session_et;
         if (newData.skipped_symbols !== undefined) window._marketDataCache.skipped_symbols = newData.skipped_symbols;
@@ -217,7 +218,7 @@ function displayMarketData(data) {
                         (e.name || e.symbol) + ' <strong>' + formatEarningsDate(e.date) + '</strong>' +
                         (e.days_until !== undefined ? ' <em>(' + e.days_until + ' 天後)</em>' : '') + '</span>';
                 }).join('');
-                earningsEl.innerHTML = '<div class="earnings-calendar-hint">📅 接下來 60 天內公布財報：</div><div class="earnings-chips">' + list + '</div>';
+                earningsEl.innerHTML = '<div class="earnings-calendar-hint">📅 美股接下來 60 天內公布財報：</div><div class="earnings-chips">' + list + '</div>';
                 earningsEl.classList.remove('hidden');
             } else {
                 earningsEl.innerHTML = '';
@@ -237,6 +238,24 @@ function displayMarketData(data) {
         }
     }
     
+    // 即將公布財報（台股 60 天內）；僅在 API 已回傳該區塊時更新
+    if (data && data.earnings_upcoming_tw !== undefined) {
+        const earningsTwEl = document.getElementById('tw-earnings-calendar');
+        if (earningsTwEl) {
+            if (data.earnings_upcoming_tw && data.earnings_upcoming_tw.length > 0) {
+                const list = data.earnings_upcoming_tw.slice(0, 30).map(function (e) {
+                    return '<span class="earnings-chip" title="' + (e.date || '') + '">' +
+                        (e.name || e.symbol) + ' <strong>' + formatEarningsDate(e.date) + '</strong>' +
+                        (e.days_until !== undefined ? ' <em>(' + e.days_until + ' 天後)</em>' : '') + '</span>';
+                }).join('');
+                earningsTwEl.innerHTML = '<div class="earnings-calendar-hint">📅 台股接下來 60 天內公布財報：</div><div class="earnings-chips">' + list + '</div>';
+                earningsTwEl.classList.remove('hidden');
+            } else {
+                earningsTwEl.innerHTML = '';
+                earningsTwEl.classList.add('hidden');
+            }
+        }
+    }
     // 顯示台股；僅在 API 已回傳該區塊時更新
     if (data && data.tw_markets !== undefined) {
         if (Object.keys(data.tw_markets).length > 0) {
@@ -570,6 +589,10 @@ function displayMarketSection(containerId, markets, sectionTitle = null, useScro
                 sortedMarkets = sortedMarkets.sort((a, b) => (b.current_price || 0) - (a.current_price || 0));
             } else if (sortBy === 'percent') {
                 sortedMarkets = sortedMarkets.sort((a, b) => (a.change_percent || 0) - (b.change_percent || 0));
+            } else if (sortBy === 'volumeDesc') {
+                sortedMarkets = sortedMarkets.sort((a, b) => (b.volume || 0) - (a.volume || 0));
+            } else if (sortBy === 'volume') {
+                sortedMarkets = sortedMarkets.sort((a, b) => (a.volume || 0) - (b.volume || 0));
             } else {
                 sortedMarkets = sortedMarkets.sort((a, b) => (b.change_percent || 0) - (a.change_percent || 0));
             }
@@ -594,6 +617,8 @@ function displayMarketSection(containerId, markets, sectionTitle = null, useScro
                 <select id="${sortSelectId}" onchange="${sortOnChange}">
                     <option value="percentDesc" ${sortBy === 'percentDesc' ? 'selected' : ''}>漲跌幅 高→低</option>
                     <option value="percent" ${sortBy === 'percent' ? 'selected' : ''}>漲跌幅 低→高</option>
+                    <option value="volumeDesc" ${sortBy === 'volumeDesc' ? 'selected' : ''}>成交量 高→低</option>
+                    <option value="volume" ${sortBy === 'volume' ? 'selected' : ''}>成交量 低→高</option>
                     <option value="priceDesc" ${sortBy === 'priceDesc' ? 'selected' : ''}>價格 高→低</option>
                     <option value="price" ${sortBy === 'price' ? 'selected' : ''}>價格 低→高</option>
                 </select>
@@ -611,6 +636,8 @@ function displayMarketSection(containerId, markets, sectionTitle = null, useScro
                             <select id="us-stocks-sort-select" onchange="applyUsStocksSort(this.value)">
                                 <option value="percentDesc" ${sortBy === 'percentDesc' ? 'selected' : ''}>漲跌幅 高→低</option>
                                 <option value="percent" ${sortBy === 'percent' ? 'selected' : ''}>漲跌幅 低→高</option>
+                                <option value="volumeDesc" ${sortBy === 'volumeDesc' ? 'selected' : ''}>成交量 高→低</option>
+                                <option value="volume" ${sortBy === 'volume' ? 'selected' : ''}>成交量 低→高</option>
                                 <option value="priceDesc" ${sortBy === 'priceDesc' ? 'selected' : ''}>價格 高→低</option>
                                 <option value="price" ${sortBy === 'price' ? 'selected' : ''}>價格 低→高</option>
                             </select>
@@ -679,7 +706,7 @@ function displayMarketSection(containerId, markets, sectionTitle = null, useScro
                         </div>
                         <div class="detail-item">
                             <span>成交量:</span>
-                            <span>${market.volume ? market.volume.toLocaleString() : 'N/A'}</span>
+                            <span>${(market.volume != null && market.volume > 0) ? market.volume.toLocaleString() : '—'}</span>
                         </div>
                     </div>
                 </div>

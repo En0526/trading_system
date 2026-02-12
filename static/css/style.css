@@ -411,6 +411,35 @@ header h1 {
     color: #666;
     margin-bottom: 8px;
 }
+
+/* ETF 專區：橫向一排，可左右捲動 */
+.etf-grid.etf-grid-horizontal-row {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px 0;
+    scrollbar-width: thin;
+    scrollbar-color: #667eea #f0f0f0;
+}
+.etf-grid.etf-grid-horizontal-row::-webkit-scrollbar {
+    height: 8px;
+}
+.etf-grid.etf-grid-horizontal-row::-webkit-scrollbar-thumb {
+    background: #667eea;
+    border-radius: 4px;
+}
+.etf-grid.etf-grid-horizontal-row > .market-grid {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 12px;
+    min-width: min-content;
+}
+.etf-grid.etf-grid-horizontal-row .market-card {
+    flex: 0 0 auto;
+    min-width: 200px;
+    max-width: 220px;
+}
+
 .crypto-hint {
     font-size: 13px;
     color: #666;
