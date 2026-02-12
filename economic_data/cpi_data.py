@@ -1,6 +1,6 @@
 """
 CPI 相關數據獲取（前月、前年、預測值）
-- 前月 / 前年：FRED API（美國勞工統計局 BLS 授權數據）
+- 前月 / 前年：FRED API（需設定 FRED_API_KEY）
 - 預測值：Trading Economics 或 Investing.com（若有 API key 或可解析）
 """
 from datetime import datetime
@@ -9,7 +9,7 @@ import requests
 import os
 
 
-# FRED 系列 ID：CPI 季調指數，可用 units 參數轉換
+# FRED 系列 ID：CPI 季調指數
 # units=pc1 → 較去年同期 %（YoY）
 # units=pch → 月增 %（MoM）
 FRED_CPI_SERIES = 'CPIAUCSL'  # Consumer Price Index for All Urban Consumers: All Items (SA)
@@ -112,6 +112,7 @@ def fetch_cpi_forecast() -> Optional[str]:
 def get_cpi_context() -> Dict[str, Any]:
     """
     取得 CPI 完整上下文（前月、前年、預測），供筆記 modal 使用。
+    需設定 FRED_API_KEY（至 https://fredaccount.stlouisfed.org/apikeys 免費註冊）。
     """
     ctx = fetch_cpi_from_fred()
     forecast = fetch_cpi_forecast()
