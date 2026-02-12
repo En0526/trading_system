@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // 區塊顯示順序：依此順序更新畫面，避免資料回傳先後造成區塊亂跳
-var MARKET_SECTION_ORDER = ['us_indices', 'us_stocks', 'tw_markets', 'international_markets', 'metals_futures', 'crypto', 'ratios'];
+var MARKET_SECTION_ORDER = ['us_indices', 'us_stocks', 'tw_markets', 'international_markets', 'etf', 'metals_futures', 'crypto', 'ratios'];
 
 // 合併 API 回傳的區塊到總快取並更新畫面
 function mergeAndDisplayMarketData(newData) {
@@ -54,6 +54,7 @@ function mergeAndDisplayMarketData(newData) {
         updateSectionTime('us-markets-update-time', newData.timestamp);
         updateSectionTime('tw-markets-update-time', newData.timestamp);
         updateSectionTime('international-markets-update-time', newData.timestamp);
+        updateSectionTime('etf-update-time', newData.timestamp);
         updateSectionTime('metals-update-time', newData.timestamp);
         updateSectionTime('crypto-update-time', newData.timestamp);
         if (newData.ratios && newData.ratios.timestamp) {
@@ -89,7 +90,7 @@ async function loadMarketData(forceRefresh = false) {
             ? '請求逾時（伺服器可能正在啟動或忙碌），請稍後按「更新」重試。'
             : ('載入市場數據時發生錯誤: ' + (error.message || ''));
         showError(msg);
-        var containers = ['us-indices', 'us-stocks', 'tw-markets', 'international-markets', 'metals-futures', 'crypto-markets'];
+        var containers = ['us-indices', 'us-stocks', 'tw-markets', 'international-markets', 'etf-markets', 'metals-futures', 'crypto-markets'];
         containers.forEach(function(id) {
             var el = document.getElementById(id);
             if (el) el.innerHTML = '<div class="error">載入錯誤: ' + (msg.replace(/^載入市場數據時發生錯誤: /, '') || '') + '</div>';
@@ -105,7 +106,7 @@ async function loadMarketData(forceRefresh = false) {
         });
     }
     var timeoutMsg = '請求逾時（伺服器可能正在啟動或忙碌），請稍後按「更新」重試。';
-    var idsAll = ['us-stocks', 'tw-markets', 'international-markets', 'metals-futures', 'crypto-markets'];
+    var idsAll = ['us-stocks', 'tw-markets', 'international-markets', 'etf-markets', 'metals-futures', 'crypto-markets'];
 
     // 2a：美股個股 + 台股（標的多、最吃時間）
     try {
@@ -127,7 +128,7 @@ async function loadMarketData(forceRefresh = false) {
 
     // 2b：國際、金屬、加密、比率
     try {
-        const url2b = baseUrl + '?sections=international_markets,metals_futures,crypto,ratios' + refreshQ;
+        const url2b = baseUrl + '?sections=international_markets,etf,metals_futures,crypto,ratios' + refreshQ;
         const controller2b = new AbortController();
         const timeout2b = setTimeout(function() { controller2b.abort(); }, 120000);
         const response2b = await fetch(url2b, { signal: controller2b.signal });
@@ -135,12 +136,12 @@ async function loadMarketData(forceRefresh = false) {
         if (!response2b.ok) throw new Error('HTTP ' + response2b.status);
         const result2b = await response2b.json();
         if (result2b.success && result2b.data) mergeAndDisplayMarketData(result2b.data);
-        else setErrorForIds(['international-markets', 'metals-futures', 'crypto-markets'], result2b.error || '載入失敗');
+        else setErrorForIds(['international-markets', 'etf-markets', 'metals-futures', 'crypto-markets'], result2b.error || '載入失敗');
     } catch (err2b) {
-        console.error('載入國際/金屬/加密/比率錯誤:', err2b);
+        console.error('載入國際/ETF/金屬/加密/比率錯誤:', err2b);
         var isAbort2 = err2b.name === 'AbortError' || (err2b.message && err2b.message.indexOf('abort') !== -1);
-        showError(isAbort2 ? timeoutMsg : ('載入國際/金屬/加密/比率失敗: ' + (err2b.message || '')));
-        setErrorForIds(['international-markets', 'metals-futures', 'crypto-markets'], isAbort2 ? timeoutMsg : (err2b.message || ''));
+        showError(isAbort2 ? timeoutMsg : ('載入國際/ETF/金屬/加密/比率失敗: ' + (err2b.message || '')));
+        setErrorForIds(['international-markets', 'etf-markets', 'metals-futures', 'crypto-markets'], isAbort2 ? timeoutMsg : (err2b.message || ''));
     }
 }
 
@@ -253,6 +254,17 @@ function displayMarketData(data) {
         } else {
             const container = document.getElementById('international-markets');
             if (container) container.innerHTML = '<div class="loading">暫無國際市場數據</div>';
+        }
+    }
+
+    // ETF 專區；僅在 API 已回傳該區塊時更新
+    if (data && data.etf !== undefined) {
+        if (Object.keys(data.etf).length > 0) {
+            window._lastEtfData = data.etf;
+            displayMarketSection('etf-markets', data.etf, null, false, false, true, 'percentDesc', false, true);
+        } else {
+            const container = document.getElementById('etf-markets');
+            if (container) container.innerHTML = '<div class="loading">暫無 ETF 數據</div>';
         }
     }
 
@@ -571,6 +583,7 @@ function displayMarketSection(containerId, markets, sectionTitle = null, useScro
         const sortCallbackMap = {
             'us-stocks': 'applyUsStocksSort',
             'tw-markets': 'applyTwMarketsSort',
+            'etf-markets': 'applyEtfSort',
             'metals-futures': 'applyMetalsFuturesSort',
             'crypto-markets': 'applyCryptoSort'
         };
@@ -710,6 +723,13 @@ function applyTwMarketsSort(sortBy) {
     displayMarketSection('tw-markets', data, '台股', false, false, true, sortBy, false, true);
 }
 
+// ETF：切換排序後重新顯示
+function applyEtfSort(sortBy) {
+    const data = window._lastEtfData;
+    if (!data) return;
+    displayMarketSection('etf-markets', data, null, false, false, true, sortBy, false, true);
+}
+
 // 重金屬期貨：切換排序後重新顯示
 function applyMetalsFuturesSort(sortBy) {
     const data = window._lastMetalsFuturesData;
@@ -816,7 +836,12 @@ function displayEconomicCalendar(data) {
     const groupedPast = groupEventsByDate(past);
     
     window._economicEventNames = window._economicEventNames || {};
-    
+    window._economicEventsMap = {};
+    for (const e of [...upcoming, ...past]) {
+        const k = getEconomicEventKey(e);
+        window._economicEventsMap[k] = e;
+    }
+
     let html = '<div class="economic-timeline">';
     
     // 即將發布
@@ -918,10 +943,31 @@ function openEconomicNoteModal(eventKey) {
     _economicNoteCurrentKey = eventKey;
     const titleEl = document.getElementById('economic-note-modal-title');
     const textareaEl = document.getElementById('economic-note-textarea');
+    const refEl = document.getElementById('economic-note-reference');
     const modalEl = document.getElementById('economic-note-modal');
     const eventName = (window._economicEventNames && window._economicEventNames[eventKey]) || eventKey;
     if (titleEl) titleEl.textContent = '筆記 － ' + eventName;
     if (textareaEl) textareaEl.value = getEconomicNote(eventKey);
+    // CPI 等：顯示前月、前年、預測參考（自動帶入）
+    if (refEl) {
+        const ev = (window._economicEventsMap && window._economicEventsMap[eventKey]) || null;
+        const isCpi = ev && ev.indicator === 'CPI';
+        if (isCpi && ev) {
+            const prevM = (ev.prev_month_value != null) ? ev.prev_month_value : '—';
+            const prevY = (ev.prev_year_value != null) ? ev.prev_year_value : '—';
+            const fc = (ev.forecast_value != null) ? ev.forecast_value : (ev.forecast_hint || '—');
+            refEl.innerHTML = '<div class="economic-note-ref-title">📊 參考數據（自動帶入）</div>' +
+                '<div class="economic-note-ref-grid">' +
+                '<span>前月：' + prevM + '</span>' +
+                '<span>前年：' + prevY + '</span>' +
+                '<span>預測：' + fc + '</span>' +
+                '</div>';
+            refEl.style.display = 'block';
+        } else {
+            refEl.innerHTML = '';
+            refEl.style.display = 'none';
+        }
+    }
     if (modalEl) modalEl.style.display = 'flex';
 }
 

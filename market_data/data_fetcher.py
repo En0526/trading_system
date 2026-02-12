@@ -606,6 +606,7 @@ class MarketDataFetcher:
             'us_indices': lambda: self._get_us_indices(),
             'us_stocks': lambda: self._get_us_stocks(),
             'tw_markets': lambda: self.get_multiple_markets(Config.TW_MARKETS),
+            'etf': lambda: self.get_multiple_markets(getattr(Config, 'ETF', {})),
             'international_markets': lambda: self.get_multiple_markets(Config.INTERNATIONAL_MARKETS),
             'metals_futures_raw': lambda: self.get_multiple_markets(getattr(Config, 'METALS_FUTURES', {})),
             'crypto': lambda: self._get_crypto_deribit(),
@@ -671,8 +672,11 @@ class MarketDataFetcher:
             summary['earnings_upcoming'] = earnings_list
         if sections is None or 'tw_markets' in sections:
             summary['tw_markets'] = tw_markets
+        etf_data = out.get('etf', {})
         if sections is None or 'international_markets' in sections:
             summary['international_markets'] = international_markets
+        if sections is None or 'etf' in sections:
+            summary['etf'] = etf_data
         if sections is None or 'metals_futures' in sections or 'metals_futures_raw' in (out or {}):
             summary['metals_futures'] = metals_futures
             summary['metals_session'] = session
@@ -685,6 +689,7 @@ class MarketDataFetcher:
             'us_indices': getattr(Config, 'US_INDICES', {}),
             'us_stocks': getattr(Config, 'US_STOCKS', {}),
             'tw_markets': getattr(Config, 'TW_MARKETS', {}),
+            'etf': getattr(Config, 'ETF', {}),
             'international_markets': getattr(Config, 'INTERNATIONAL_MARKETS', {}),
             'metals_futures': getattr(Config, 'METALS_FUTURES', {}),
             'crypto': getattr(Config, 'CRYPTO', {}),

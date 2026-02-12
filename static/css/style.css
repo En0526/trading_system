@@ -406,6 +406,11 @@ header h1 {
     margin-bottom: 12px;
 }
 
+.etf-hint {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 8px;
+}
 .crypto-hint {
     font-size: 13px;
     color: #666;
@@ -1105,6 +1110,31 @@ header h1 {
 .economic-note-modal-body {
     padding: 20px;
     overflow: auto;
+}
+
+.economic-note-reference {
+    margin-bottom: 14px;
+    padding: 12px 14px;
+    background: #f8f9fc;
+    border: 1px solid #e8ecf4;
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.economic-note-ref-title {
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 8px;
+}
+
+.economic-note-ref-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+}
+
+.economic-note-ref-grid span {
+    color: #333;
 }
 
 .economic-note-modal-body textarea {

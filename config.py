@@ -17,7 +17,6 @@ class Config:
         '^DJI': 'Dow Jones',
         '^IXIC': 'NASDAQ',
         'QQQ': 'NASDAQ 100',
-        'VOO': 'S&P 500 ETF',
         'IWM': 'Russell 2000'
     }
     
@@ -64,6 +63,18 @@ class Config:
     
     # 兼容舊配置
     US_MARKETS = US_INDICES
+    
+    # ETF 專區（美股 + 台股 ETF，yfinance）
+    ETF = {
+        'VOO': 'VOO S&P500',
+        'QQQ': 'QQQ NASDAQ100',
+        '0050.TW': '元大台灣50',
+        '00951.TW': '元大台灣50反1',
+        '09809.TW': '新光標普電動車',
+        '00983A.TW': '國泰美國標普500反1',
+        '00982A.TW': '國泰美國道瓊反1',
+        '00981A.TW': '國泰美國標普500',
+    }
     
     TW_MARKETS = {
         '^TWII': '台灣加權指數',
@@ -115,7 +126,6 @@ class Config:
         'BNB-USD': 'BNB',
         'XRP-USD': '瑞波幣',
         'SOL-USD': 'Solana',
-        'USDT-USD': '泰達幣',
         'DOGE-USD': '狗狗幣',
         'ADA-USD': 'Cardano',
         'AVAX-USD': 'Avalanche',

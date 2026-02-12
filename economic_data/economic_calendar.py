@@ -3,6 +3,7 @@
 获取重要经济数据发布时间（CPI, PPI, PCE, 非农就业等）
 """
 from datetime import datetime, timedelta
+from typing import Dict, Any, Optional
 from typing import List, Dict, Optional
 import requests
 from bs4 import BeautifulSoup
@@ -16,7 +17,9 @@ class EconomicCalendar:
         self.cache = {}
         self.cache_time = {}
         self.cache_duration = 3600  # 缓存1小时
-        
+        self._cpi_ctx_cache = None
+        self._cpi_ctx_cache_time = None
+
         # 重要經濟指標定義（繁體中文，僅用於 BLS 爬取後顯示）
         self.indicators = {
             'CPI': {
@@ -389,6 +392,21 @@ class EconomicCalendar:
             print(f"从BLS获取数据时出错: {e}")
         
         return events
+
+    def _get_cpi_context_cached(self, force_refresh: bool = False) -> Optional[Dict[str, Any]]:
+        """取得 CPI 前月、前年、預測（含緩存）"""
+        if not force_refresh and self._cpi_ctx_cache is not None and self._cpi_ctx_cache_time:
+            age = (datetime.now() - self._cpi_ctx_cache_time).total_seconds()
+            if age < self.cache_duration:
+                return self._cpi_ctx_cache
+        try:
+            from economic_data.cpi_data import get_cpi_context
+            self._cpi_ctx_cache = get_cpi_context()
+            self._cpi_ctx_cache_time = datetime.now()
+            return self._cpi_ctx_cache
+        except Exception as e:
+            print(f"取得 CPI 數據時出錯: {e}")
+            return self._cpi_ctx_cache  # 沿用舊快取或 None
     
     def get_economic_calendar(self, force_refresh: bool = False) -> Dict:
         """
@@ -439,6 +457,19 @@ class EconomicCalendar:
                 seen.add(key)
                 unique_events.append(event)
         
+        # 為 CPI（及可擴充其他指標）補充前月、前年、預測值
+        cpi_ctx = self._get_cpi_context_cached(force_refresh)
+        for event in unique_events:
+            if event.get('indicator') == 'CPI' and cpi_ctx:
+                if cpi_ctx.get('prev_month_value') is not None:
+                    event['prev_month_value'] = cpi_ctx['prev_month_value']
+                if cpi_ctx.get('prev_year_value') is not None:
+                    event['prev_year_value'] = cpi_ctx['prev_year_value']
+                if cpi_ctx.get('forecast_value') is not None:
+                    event['forecast_value'] = cpi_ctx['forecast_value']
+                elif cpi_ctx.get('forecast_hint'):
+                    event['forecast_hint'] = cpi_ctx['forecast_hint']
+
         # 分离未来和过去的事件
         now = datetime.now(self.us_tz)
         upcoming = []

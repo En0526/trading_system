@@ -61,6 +61,21 @@
                 </div>
             </section>
 
+            <!-- ETF 專區 -->
+            <section class="market-section">
+                <div class="section-header">
+                    <h2>📈 ETF 專區</h2>
+                    <div class="section-controls">
+                        <span class="update-time" id="etf-update-time">-</span>
+                        <button class="btn-refresh-small" onclick="refreshMarketData('etf')" title="更新 ETF 報價">🔄 更新</button>
+                    </div>
+                </div>
+                <div class="etf-hint">美股 VOO、QQQ；台股 0050、00951 等，來源 yfinance</div>
+                <div id="etf-markets" class="market-grid">
+                    <div class="loading">載入中...</div>
+                </div>
+            </section>
+
             <!-- 重金屬專區：期貨（COMEX/紐約，夜盤/日盤） -->
             <section class="market-section metals-section">
                 <div class="section-header">
@@ -198,6 +213,7 @@
                         <button type="button" class="economic-note-modal-close" onclick="closeEconomicNoteModal()">×</button>
                     </div>
                     <div class="economic-note-modal-body">
+                        <div id="economic-note-reference" class="economic-note-reference" style="display: none;"></div>
                         <textarea id="economic-note-textarea" rows="6" placeholder="在此輸入筆記…"></textarea>
                     </div>
                     <div class="economic-note-modal-footer">
