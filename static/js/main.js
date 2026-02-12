@@ -33,7 +33,7 @@ function runAllSectionsInOrder(forceRefresh) {
     return next(0, order);
 }
 
-// 初始化：延遲 2 秒後依區塊順序「一個接一個」載入，首輪不強制 refresh 以減輕算力
+// 初始化：延遲 2 秒後依區塊順序載入；Render 有 30 秒請求上限，若遇 502 可多按「更新」重試
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() {
         runAllSectionsInOrder(false).catch(function(e) { console.error(e); });
@@ -983,20 +983,23 @@ function openEconomicNoteModal(eventKey) {
     const eventName = (window._economicEventNames && window._economicEventNames[eventKey]) || eventKey;
     if (titleEl) titleEl.textContent = '筆記 － ' + eventName;
     if (textareaEl) textareaEl.value = getEconomicNote(eventKey);
-    // CPI 等：顯示前月、前年、預測參考（自動帶入）
+    // CPI、PPI、NFP：顯示前月、前年、預測參考（自動帶入）
     if (refEl) {
         const ev = (window._economicEventsMap && window._economicEventsMap[eventKey]) || null;
-        const isCpi = ev && ev.indicator === 'CPI';
-        if (isCpi && ev) {
+        const hasRef = ev && (ev.prev_month_value != null || ev.prev_year_value != null);
+        if (hasRef && ev) {
             const prevM = (ev.prev_month_value != null) ? ev.prev_month_value : '—';
             const prevY = (ev.prev_year_value != null) ? ev.prev_year_value : '—';
-            const fc = (ev.forecast_value != null) ? ev.forecast_value : (ev.forecast_hint || '—');
-            refEl.innerHTML = '<div class="economic-note-ref-title">📊 參考數據（自動帶入）</div>' +
+            let html = '<div class="economic-note-ref-title">📊 參考數據（自動帶入）</div>' +
                 '<div class="economic-note-ref-grid">' +
                 '<span>前月：' + prevM + '</span>' +
-                '<span>前年：' + prevY + '</span>' +
-                '<span>預測：' + fc + '</span>' +
-                '</div>';
+                '<span>前年：' + prevY + '</span>';
+            if (ev.indicator === 'CPI') {
+                const fc = (ev.forecast_value != null) ? ev.forecast_value : (ev.forecast_hint || '—');
+                html += '<span>預測：' + fc + '</span>';
+            }
+            html += '</div>';
+            refEl.innerHTML = html;
             refEl.style.display = 'block';
         } else {
             refEl.innerHTML = '';

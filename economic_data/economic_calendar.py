@@ -19,6 +19,10 @@ class EconomicCalendar:
         self.cache_duration = 3600  # 缓存1小时
         self._cpi_ctx_cache = None
         self._cpi_ctx_cache_time = None
+        self._ppi_ctx_cache = None
+        self._ppi_ctx_cache_time = None
+        self._nfp_ctx_cache = None
+        self._nfp_ctx_cache_time = None
 
         # 重要經濟指標定義（繁體中文，僅用於 BLS 爬取後顯示）
         self.indicators = {
@@ -407,7 +411,37 @@ class EconomicCalendar:
         except Exception as e:
             print(f"取得 CPI 數據時出錯: {e}")
             return self._cpi_ctx_cache  # 沿用舊快取或 None
-    
+
+    def _get_ppi_context_cached(self, force_refresh: bool = False) -> Optional[Dict[str, Any]]:
+        """取得 PPI 前月、前年（含緩存）"""
+        if not force_refresh and self._ppi_ctx_cache is not None and self._ppi_ctx_cache_time:
+            age = (datetime.now() - self._ppi_ctx_cache_time).total_seconds()
+            if age < self.cache_duration:
+                return self._ppi_ctx_cache
+        try:
+            from economic_data.cpi_data import fetch_ppi_from_fred
+            self._ppi_ctx_cache = fetch_ppi_from_fred()
+            self._ppi_ctx_cache_time = datetime.now()
+            return self._ppi_ctx_cache
+        except Exception as e:
+            print(f"取得 PPI 數據時出錯: {e}")
+            return self._ppi_ctx_cache
+
+    def _get_nfp_context_cached(self, force_refresh: bool = False) -> Optional[Dict[str, Any]]:
+        """取得 NFP 前月變動（含緩存）"""
+        if not force_refresh and self._nfp_ctx_cache is not None and self._nfp_ctx_cache_time:
+            age = (datetime.now() - self._nfp_ctx_cache_time).total_seconds()
+            if age < self.cache_duration:
+                return self._nfp_ctx_cache
+        try:
+            from economic_data.cpi_data import fetch_nfp_from_fred
+            self._nfp_ctx_cache = fetch_nfp_from_fred()
+            self._nfp_ctx_cache_time = datetime.now()
+            return self._nfp_ctx_cache
+        except Exception as e:
+            print(f"取得 NFP 數據時出錯: {e}")
+            return self._nfp_ctx_cache
+
     def get_economic_calendar(self, force_refresh: bool = False) -> Dict:
         """
         获取经济日历数据
@@ -457,18 +491,29 @@ class EconomicCalendar:
                 seen.add(key)
                 unique_events.append(event)
         
-        # 為 CPI（及可擴充其他指標）補充前月、前年、預測值
+        # 為 CPI、PPI、NFP 補充前月、前年、預測值
         cpi_ctx = self._get_cpi_context_cached(force_refresh)
+        ppi_ctx = self._get_ppi_context_cached(force_refresh)
+        nfp_ctx = self._get_nfp_context_cached(force_refresh)
         for event in unique_events:
-            if event.get('indicator') == 'CPI' and cpi_ctx:
-                if cpi_ctx.get('prev_month_value') is not None:
-                    event['prev_month_value'] = cpi_ctx['prev_month_value']
-                if cpi_ctx.get('prev_year_value') is not None:
-                    event['prev_year_value'] = cpi_ctx['prev_year_value']
-                if cpi_ctx.get('forecast_value') is not None:
-                    event['forecast_value'] = cpi_ctx['forecast_value']
-                elif cpi_ctx.get('forecast_hint'):
-                    event['forecast_hint'] = cpi_ctx['forecast_hint']
+            ind = event.get('indicator')
+            ctx = None
+            if ind == 'CPI':
+                ctx = cpi_ctx
+            elif ind == 'PPI':
+                ctx = ppi_ctx
+            elif ind == 'NFP':
+                ctx = nfp_ctx
+            if ctx:
+                if ctx.get('prev_month_value') is not None:
+                    event['prev_month_value'] = ctx['prev_month_value']
+                if ctx.get('prev_year_value') is not None:
+                    event['prev_year_value'] = ctx['prev_year_value']
+                if ind == 'CPI' and cpi_ctx:
+                    if cpi_ctx.get('forecast_value') is not None:
+                        event['forecast_value'] = cpi_ctx['forecast_value']
+                    elif cpi_ctx.get('forecast_hint'):
+                        event['forecast_hint'] = cpi_ctx['forecast_hint']
 
         # 分离未来和过去的事件
         now = datetime.now(self.us_tz)
