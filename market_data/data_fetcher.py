@@ -19,6 +19,7 @@ from market_data.finnhub_client import (
     get_multiple_quotes as finnhub_get_multiple,
     get_earnings_calendar as finnhub_get_earnings_calendar,
 )
+from market_data.fmp_client import get_earnings_calendar as fmp_get_earnings_calendar
 from market_data.deribit_client import get_multiple_crypto as deribit_get_multiple
 # 並行取得時每批最大執行緒數（降低可減輕單機負載與 Yahoo 壓力）
 MAX_WORKERS = 8
@@ -313,16 +314,24 @@ class MarketDataFetcher:
         return out
 
     def _fetch_hist(self, symbol: str, period: str = '20y') -> Optional[pd.Series]:
-        """取得收盤價歷史序列，用於計算比率。"""
+        """取得收盤價歷史序列，用於計算比率。yfinance 失敗時（如 Render 雲端被擋）用 TwelveData 備援。"""
         try:
             ticker = yf.Ticker(symbol)
             df = ticker.history(period=period, interval='1d')
-            if df is None or df.empty or 'Close' not in df.columns:
-                return None
-            return df['Close'].dropna()
+            if df is not None and not df.empty and 'Close' in df.columns:
+                s = df['Close'].dropna()
+                if not s.empty:
+                    return s
         except Exception as e:
-            print(f"Error fetching history for {symbol}: {e}")
-            return None
+            print(f"yfinance history {symbol}: {e}")
+        td_key = getattr(Config, 'TWELVEDATA_API_KEY', None) or ''
+        if td_key:
+            from market_data.twelvedata_client import fetch_time_series
+            s = fetch_time_series(td_key, symbol, period)
+            if s is not None and not s.empty:
+                return s
+            time.sleep(0.5)
+        return None
 
     def _normalize_series_index(self, series: pd.Series) -> pd.Series:
         """將指數正規化為「日期 only」、無時區，以便與其他標的對齊（避免 BTC 與 GC=F 時區不同導致交集為空）。"""
@@ -490,10 +499,54 @@ class MarketDataFetcher:
             'values': values,
         }
 
+    def _yf_earnings_for_symbol(self, symbol: str, name: str, today, end_date, tz_et) -> Optional[Dict]:
+        """單一 symbol 從 yfinance 取得 60 天內財報日（get_earnings_dates + calendar 雙重 fallback）"""
+        try:
+            ticker = yf.Ticker(symbol)
+            next_date = None
+            # 方法 1：get_earnings_dates
+            ed = ticker.get_earnings_dates()
+            if ed is not None and not ed.empty:
+                for d in ed.index:
+                    try:
+                        ts = pd.Timestamp(d)
+                        if ts.tz is not None:
+                            ts = ts.tz_convert(tz_et)
+                        d_date = ts.date()
+                    except Exception:
+                        continue
+                    if today <= d_date <= end_date:
+                        if next_date is None or d_date < next_date:
+                            next_date = d_date
+            # 方法 2：若無結果，改用 calendar['Earnings Date']（Yahoo 有時只在此提供未來日期）
+            if next_date is None:
+                cal = getattr(ticker, 'calendar', None) or (getattr(ticker, 'get_calendar', lambda: None)())
+                if isinstance(cal, dict):
+                    ed_cal = cal.get('Earnings Date')
+                    if ed_cal is not None:
+                        for d in (ed_cal if isinstance(ed_cal, list) else [ed_cal]):
+                            try:
+                                d_date = d.date() if hasattr(d, 'date') else d
+                                if today <= d_date <= end_date:
+                                    if next_date is None or d_date < next_date:
+                                        next_date = d_date
+                            except Exception:
+                                pass
+            if next_date is not None:
+                days_until = (next_date - today).days
+                return {
+                    'date': next_date.strftime('%Y-%m-%d'),
+                    'days_until': days_until,
+                    'name': name,
+                }
+        except Exception:
+            pass
+        return None
+
     def get_earnings_calendar(self, days_ahead: int = 60, force_refresh: bool = False) -> Dict[str, Dict]:
         """
         取得美股接下來 N 天內的財報公布日（依 Config.US_STOCKS）。
-        有 FINNHUB_API_KEY 時用 Finnhub（一次請求、含 BRK.B 等）；否則 fallback yfinance。
+        優先順序：Finnhub → FMP → yfinance（含 calendar fallback）。
         回傳 { symbol: {'date': 'YYYY-MM-DD', 'days_until': int, 'name': str}, ... }
         """
         now = time.time()
@@ -503,49 +556,38 @@ class MarketDataFetcher:
             tz_et = pytz.timezone('US/Eastern')
             today = datetime.now(tz_et).date()
             end_date = today + timedelta(days=days_ahead)
+            from_str = today.strftime('%Y-%m-%d')
+            to_str = end_date.strftime('%Y-%m-%d')
+
+            # 1. Finnhub
             api_key = getattr(Config, 'FINNHUB_API_KEY', None) or ''
             if api_key:
                 result = finnhub_get_earnings_calendar(
-                    api_key,
-                    today.strftime('%Y-%m-%d'),
-                    end_date.strftime('%Y-%m-%d'),
-                    Config.US_STOCKS,
+                    api_key, from_str, to_str, Config.US_STOCKS,
                 )
                 if result:
                     self._earnings_cache = result
                     self._earnings_cache_time = now
                     return result
-                # Finnhub 回傳空（429、錯誤等）時 fallback yfinance
+
+            # 2. FMP（Financial Modeling Prep）備援
+            fmp_key = getattr(Config, 'FMP_API_KEY', None) or ''
+            if fmp_key:
+                result = fmp_get_earnings_calendar(
+                    fmp_key, from_str, to_str, Config.US_STOCKS,
+                )
+                if result:
+                    self._earnings_cache = result
+                    self._earnings_cache_time = now
+                    return result
+
+            # 3. yfinance（含 calendar fallback）
             result = {}
             for symbol, name in Config.US_STOCKS.items():
-                try:
-                    ticker = yf.Ticker(symbol)
-                    ed = ticker.get_earnings_dates()
-                    if ed is None or ed.empty:
-                        continue
-                    dates = ed.index
-                    next_date = None
-                    for d in dates:
-                        try:
-                            ts = pd.Timestamp(d)
-                            if ts.tz is not None:
-                                ts = ts.tz_convert(tz_et)
-                            d_date = ts.date()
-                        except Exception:
-                            continue
-                        if today <= d_date <= end_date:
-                            if next_date is None or d_date < next_date:
-                                next_date = d_date
-                    if next_date is not None:
-                        days_until = (next_date - today).days
-                        result[symbol] = {
-                            'date': next_date.strftime('%Y-%m-%d'),
-                            'days_until': days_until,
-                            'name': name,
-                        }
-                    time.sleep(0.12)
-                except Exception:
-                    continue
+                ec = self._yf_earnings_for_symbol(symbol, name, today, end_date, tz_et)
+                if ec:
+                    result[symbol] = ec
+                time.sleep(0.12)
             self._earnings_cache = result
             self._earnings_cache_time = now
             return result

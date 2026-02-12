@@ -145,6 +145,7 @@ class Config:
     
     # 多資料源 API key（選填，未設則該區塊 fallback 用 yfinance）
     FINNHUB_API_KEY = os.environ.get('FINNHUB_API_KEY', '').strip()
+    FMP_API_KEY = os.environ.get('FMP_API_KEY', '').strip()  # 財報行事曆備援
     TWELVEDATA_API_KEY = os.environ.get('TWELVEDATA_API_KEY', '').strip()
     # 加密一律用 Deribit 交易所，無需 key
 
