@@ -1326,6 +1326,76 @@ function displayPremarketMarket(containerId, marketData) {
     `;
 }
 
+function updateIRDataUpdateTime(elementId, timestamp) {
+    const el = document.getElementById(elementId);
+    if (el && timestamp) {
+        const date = new Date(timestamp);
+        const timeString = date.toLocaleString('zh-TW', {
+            timeZone: 'Asia/Taipei',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        el.textContent = '資料: ' + timeString;
+    }
+}
+
+function renderIRFiles(files) {
+    const el = document.getElementById('ir-files-list');
+    if (!el) return;
+    if (!files || files.length === 0) {
+        el.innerHTML = '<span class="institutional-dates-empty">尚無上傳的檔案</span>';
+        return;
+    }
+    el.innerHTML = files.map(function(f) {
+        return '<span class="institutional-date-chip">' + f + '</span>';
+    }).join('');
+}
+
+async function uploadIRCsv() {
+    const fileInput = document.getElementById('ir-csv-file');
+    const statusEl = document.getElementById('ir-upload-status');
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        showError('請先選擇 CSV 檔案（可多選）');
+        return;
+    }
+    const files = Array.from(fileInput.files);
+    const btn = document.querySelector('.ir-upload-block .institutional-upload-form button');
+    if (btn) btn.disabled = true;
+    let ok = 0, fail = 0;
+    for (let i = 0; i < files.length; i++) {
+        if (statusEl) statusEl.textContent = '上傳中 ' + (i + 1) + '/' + files.length + '…';
+        const form = new FormData();
+        form.append('file', files[i]);
+        try {
+            const res = await fetch('/api/ir-meetings/upload', { method: 'POST', body: form });
+            const result = await res.json();
+            if (result.success && result.data) {
+                ok++;
+                if (result.data.uploaded_files) renderIRFiles(result.data.uploaded_files);
+            } else {
+                fail++;
+                showError((result.error || '上傳失敗') + '：' + (files[i].name || ''));
+            }
+        } catch (err) {
+            fail++;
+            showError('上傳錯誤 ' + (files[i].name || '') + ': ' + err.message);
+        }
+    }
+    fileInput.value = '';
+    if (statusEl) statusEl.textContent = ok > 0 ? '已上傳 ' + ok + ' 個' + (fail > 0 ? '，' + fail + ' 個失敗' : '') : '上傳失敗';
+    if (ok > 0) await loadIRMeetings(true);
+    if (btn) {
+        btn.textContent = '✓ 上傳';
+        setTimeout(function() { btn.textContent = '上傳'; btn.disabled = false; }, 2000);
+    } else {
+        if (btn) btn.disabled = false;
+    }
+    setTimeout(function() { if (statusEl) statusEl.textContent = ''; }, 4000);
+}
+
 // 載入法人說明會資料
 async function loadIRMeetings(forceRefresh = false) {
     try {
@@ -1342,6 +1412,15 @@ async function loadIRMeetings(forceRefresh = false) {
             displayIRTimeline(result.data);
             if (result.data && result.data.timestamp) {
                 updateSectionTime('ir-update-time', result.data.timestamp);
+            }
+            if (result.data && result.data.csv_last_updated) {
+                updateIRDataUpdateTime('ir-data-update-time', result.data.csv_last_updated);
+            } else {
+                const el = document.getElementById('ir-data-update-time');
+                if (el) el.textContent = '資料: -';
+            }
+            if (result.data && result.data.uploaded_files) {
+                renderIRFiles(result.data.uploaded_files);
             }
         } else {
             console.error('法說會API返回錯誤:', result.error);
@@ -1375,6 +1454,13 @@ async function refreshIRMeetings() {
         if (result.success) {
             displayIRTimeline(result.data);
             updateSectionTime('ir-update-time', result.data.timestamp || new Date().toISOString());
+            if (result.data.csv_last_updated) {
+                updateIRDataUpdateTime('ir-data-update-time', result.data.csv_last_updated);
+            } else {
+                const el = document.getElementById('ir-data-update-time');
+                if (el) el.textContent = '資料: -';
+            }
+            if (result.data.uploaded_files) renderIRFiles(result.data.uploaded_files);
             button.textContent = '✓ 已更新';
             setTimeout(() => {
                 button.textContent = originalText;

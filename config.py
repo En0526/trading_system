@@ -136,7 +136,7 @@ class Config:
     # 多資料源 API key（選填，未設則該區塊 fallback 用 yfinance）
     FINNHUB_API_KEY = os.environ.get('FINNHUB_API_KEY', '').strip()
     TWELVEDATA_API_KEY = os.environ.get('TWELVEDATA_API_KEY', '').strip()
-    # 加密一律用 Binance，無需 key
+    # 加密一律用 Deribit 交易所，無需 key
 
     # 數據更新間隔（秒）
     DATA_UPDATE_INTERVAL = 60

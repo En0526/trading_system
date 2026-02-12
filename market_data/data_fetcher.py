@@ -19,7 +19,7 @@ from market_data.finnhub_client import (
     get_multiple_quotes as finnhub_get_multiple,
     get_earnings_calendar as finnhub_get_earnings_calendar,
 )
-from market_data.binance_client import get_multiple_crypto as binance_get_multiple
+from market_data.deribit_client import get_multiple_crypto as deribit_get_multiple
 from market_data.twelvedata_client import get_multiple_metals as twelvedata_get_metals
 
 # 並行取得時每批最大執行緒數（降低可減輕單機負載與 Yahoo 壓力）
@@ -229,12 +229,12 @@ class MarketDataFetcher:
             return out
         return self.get_multiple_markets(Config.US_STOCKS)
 
-    def _get_crypto_binance(self) -> Dict[str, Dict]:
-        """加密貨幣：一律 Binance。"""
-        key = 'crypto_binance'
+    def _get_crypto_deribit(self) -> Dict[str, Dict]:
+        """加密貨幣：Deribit 交易所（永續合約 ticker / index price）。"""
+        key = 'crypto_deribit'
         if self._is_cache_valid(key):
             return self.cache.get(key, {})
-        out = binance_get_multiple(getattr(Config, 'CRYPTO', {}))
+        out = deribit_get_multiple(getattr(Config, 'CRYPTO', {}))
         self.cache[key] = out
         self.cache_time[key] = time.time()
         return out
@@ -621,7 +621,7 @@ class MarketDataFetcher:
             'tw_markets': lambda: self.get_multiple_markets(Config.TW_MARKETS),
             'international_markets': lambda: self.get_multiple_markets(Config.INTERNATIONAL_MARKETS),
             'metals_futures_raw': lambda: self._get_metals_twelvedata(),
-            'crypto': lambda: self._get_crypto_binance(),
+            'crypto': lambda: self._get_crypto_deribit(),
             'ratios': lambda: self.get_ratios_summary(),
         }
         if sections is not None:

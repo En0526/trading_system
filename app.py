@@ -3,6 +3,8 @@ Trading System - 主應用程式
 """
 # 雲端（如 Render）上 Python 預設憑證路徑可能失敗，先強制使用 certifi 的憑證
 import os
+import sys
+import traceback
 try:
     import certifi
     os.environ.setdefault('SSL_CERT_FILE', certifi.where())
@@ -10,22 +12,29 @@ try:
 except ImportError:
     pass
 
-from flask import Flask, render_template, jsonify
-from market_data.data_fetcher import MarketDataFetcher
-from timing.timing_selector import TimingSelector
-from strategy.strategy_matcher import StrategyMatcher
-from news_analysis.volume_analyzer import VolumeAnalyzer
-from news_analysis.premarket_analyzer import PremarketAnalyzer
-from news_analysis.ir_fetcher import IRFetcher
-from economic_data.economic_calendar import EconomicCalendar
-from market_data.institutional_net import (
-    get_institutional_net_ytd,
-    list_uploaded_dates,
-    save_uploaded_csv,
-    try_parse_date_from_csv,
-    try_parse_date_from_filename,
-)
-from config import Config
+# 匯入失敗時印出完整錯誤，方便 Railway/Render 日誌排查
+try:
+    from flask import Flask, render_template, jsonify
+    from market_data.data_fetcher import MarketDataFetcher
+    from timing.timing_selector import TimingSelector
+    from strategy.strategy_matcher import StrategyMatcher
+    from news_analysis.volume_analyzer import VolumeAnalyzer
+    from news_analysis.premarket_analyzer import PremarketAnalyzer
+    from news_analysis.ir_fetcher import IRFetcher
+    from economic_data.economic_calendar import EconomicCalendar
+    from market_data.institutional_net import (
+        get_institutional_net_ytd,
+        list_uploaded_dates,
+        save_uploaded_csv,
+        try_parse_date_from_csv,
+        try_parse_date_from_filename,
+    )
+    from config import Config
+except Exception as e:
+    traceback.print_exc(file=sys.stderr)
+    sys.stderr.flush()
+    raise
+
 from datetime import datetime, timezone
 import json
 
@@ -352,6 +361,9 @@ def get_ir_meetings():
         
         timeline = ir_fetcher.get_ir_timeline(months_ahead=3)
         timeline['timestamp'] = datetime.now(timezone.utc).isoformat()
+        last_updated = ir_fetcher.get_ir_csv_last_updated()
+        timeline['csv_last_updated'] = last_updated.isoformat() if last_updated else None
+        timeline['uploaded_files'] = ir_fetcher.list_ir_csv_files()
         return jsonify({
             'success': True,
             'data': timeline
@@ -361,19 +373,44 @@ def get_ir_meetings():
         error_msg = str(e)
         traceback.print_exc()
         # 回傳 200 + 空資料，避免前端只看到 502；前端可顯示 error 訊息
+        last_updated = ir_fetcher.get_ir_csv_last_updated()
         return jsonify({
             'success': False,
             'error': error_msg,
             'data': {
                 'timeline': [],
                 'total_meetings': 0,
-                'date_range': {
-                    'start': None,
-                    'end': None
-                },
-                'timestamp': datetime.now(timezone.utc).isoformat()
+                'date_range': {'start': None, 'end': None},
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'csv_last_updated': last_updated.isoformat() if last_updated else None,
+                'uploaded_files': ir_fetcher.list_ir_csv_files()
             }
         })
+
+
+@app.route('/api/ir-meetings/upload', methods=['POST'])
+def upload_ir_csv():
+    """上傳法說會 CSV，表單欄位：file（檔案）。檔名會保留（如 1月.csv、2月.csv）。"""
+    from flask import request
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': '請選擇檔案'}), 400
+        f = request.files['file']
+        if not f or not f.filename:
+            return jsonify({'success': False, 'error': '請選擇檔案'}), 400
+        content = f.read()
+        ir_fetcher.save_uploaded_csv(f.filename, content)
+        return jsonify({
+            'success': True,
+            'data': {
+                'saved_filename': f.filename,
+                'uploaded_files': ir_fetcher.list_ir_csv_files()
+            },
+            'timestamp': datetime.now(timezone.utc).isoformat()
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=Config.DEBUG, host='0.0.0.0', port=Config.PORT)

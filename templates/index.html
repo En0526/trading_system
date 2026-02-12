@@ -282,7 +282,20 @@
                 <h2>📅 法人說明會專區</h2>
                 <div class="section-controls">
                     <span class="update-time" id="ir-update-time">-</span>
+                    <span class="update-time" id="ir-data-update-time" title="最新資料更新時間">資料: -</span>
                     <button class="btn-refresh-small" onclick="refreshIRMeetings()" title="更新法說會資料">🔄 更新</button>
+                </div>
+            </div>
+            <div class="ir-upload-block institutional-upload-block">
+                <div class="institutional-dates-block">
+                    <span class="institutional-dates-label">已有資料檔案：</span>
+                    <div id="ir-files-list" class="institutional-dates-chips"></div>
+                </div>
+                <div class="institutional-upload-form">
+                    <label>上傳 CSV（檔名如 1月.csv、2月.csv）：</label>
+                    <input type="file" id="ir-csv-file" accept=".csv" multiple />
+                    <button type="button" class="btn-refresh-small" onclick="uploadIRCsv()">上傳</button>
+                    <span id="ir-upload-status" class="institutional-upload-status"></span>
                 </div>
             </div>
             <div id="ir-timeline" class="ir-timeline-container">

@@ -332,3 +332,41 @@ class IRFetcher:
             },
             'timestamp': datetime.now(self.taiwan_tz).isoformat()
         }
+    
+    def list_ir_csv_files(self) -> List[str]:
+        """掃描 ir_csv 目錄，回傳已有 CSV 檔名列表（已排序）。"""
+        if not self.csv_dir.exists():
+            return []
+        files = []
+        for p in self.csv_dir.iterdir():
+            if p.is_file() and p.suffix.lower() == '.csv':
+                files.append(p.name)
+        return sorted(files)
+    
+    def get_ir_csv_last_updated(self) -> Optional[datetime]:
+        """回傳 ir_csv 目錄內 CSV 檔案的最新修改時間。"""
+        if not self.csv_dir.exists():
+            return None
+        latest = None
+        for p in self.csv_dir.iterdir():
+            if p.is_file() and p.suffix.lower() == '.csv':
+                mtime = datetime.fromtimestamp(p.stat().st_mtime, tz=self.taiwan_tz)
+                if latest is None or mtime > latest:
+                    latest = mtime
+        return latest
+    
+    def save_uploaded_csv(self, filename: str, content: bytes) -> None:
+        """將上傳的 CSV 存到 ir_csv，並清除快取。filename 需含 .csv，例如 1月.csv。"""
+        import re
+        base = Path(filename).name
+        if not base.lower().endswith('.csv'):
+            base = base + '.csv' if not base.endswith('.') else base[:-1] + '.csv'
+        safe = re.sub(r'[^\w\u4e00-\u9fff\-\s.]', '', base)
+        if not safe:
+            safe = f'upload_{int(datetime.now().timestamp())}.csv'
+        path = self.csv_dir / safe
+        self.csv_dir.mkdir(exist_ok=True)
+        with open(path, 'wb') as f:
+            f.write(content)
+        self.cache.clear()
+        self.cache_time.clear()
