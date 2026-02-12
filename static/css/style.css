@@ -554,6 +554,11 @@ header h1 {
     align-items: center;
     gap: 10px;
 }
+.ir-upload-hint {
+    font-size: 12px;
+    color: #888;
+    margin-left: 6px;
+}
 .institutional-upload-form label {
     font-size: 13px;
     color: #555;

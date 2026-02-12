@@ -1375,6 +1375,9 @@ async function uploadIRCsv() {
             if (result.success && result.data) {
                 ok++;
                 if (result.data.uploaded_files) renderIRFiles(result.data.uploaded_files);
+                if (result.data.detected_month && statusEl) {
+                    statusEl.textContent = '辨識為 ' + result.data.detected_month + ' 月 → ' + (result.data.saved_filename || '');
+                }
             } else {
                 fail++;
                 showError((result.error || '上傳失敗') + '：' + (files[i].name || ''));
@@ -1385,7 +1388,7 @@ async function uploadIRCsv() {
         }
     }
     fileInput.value = '';
-    if (statusEl) statusEl.textContent = ok > 0 ? '已上傳 ' + ok + ' 個' + (fail > 0 ? '，' + fail + ' 個失敗' : '') : '上傳失敗';
+    if (statusEl && statusEl.textContent.indexOf('辨識為') === -1) statusEl.textContent = ok > 0 ? '已上傳 ' + ok + ' 個' + (fail > 0 ? '，' + fail + ' 個失敗' : '') : '上傳失敗';
     if (ok > 0) await loadIRMeetings(true);
     if (btn) {
         btn.textContent = '✓ 上傳';

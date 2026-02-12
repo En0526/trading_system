@@ -390,7 +390,7 @@ def get_ir_meetings():
 
 @app.route('/api/ir-meetings/upload', methods=['POST'])
 def upload_ir_csv():
-    """上傳法說會 CSV，表單欄位：file（檔案）。檔名會保留（如 1月.csv、2月.csv）。"""
+    """上傳法說會 CSV。會從內容辨識月份，存為 N月.csv 並覆蓋同月份舊檔。"""
     from flask import request
     try:
         if 'file' not in request.files:
@@ -399,11 +399,12 @@ def upload_ir_csv():
         if not f or not f.filename:
             return jsonify({'success': False, 'error': '請選擇檔案'}), 400
         content = f.read()
-        ir_fetcher.save_uploaded_csv(f.filename, content)
+        saved_name, detected_month = ir_fetcher.save_uploaded_csv(f.filename, content)
         return jsonify({
             'success': True,
             'data': {
-                'saved_filename': f.filename,
+                'saved_filename': saved_name,
+                'detected_month': detected_month,
                 'uploaded_files': ir_fetcher.list_ir_csv_files()
             },
             'timestamp': datetime.now(timezone.utc).isoformat()

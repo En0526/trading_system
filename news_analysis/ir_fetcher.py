@@ -355,18 +355,65 @@ class IRFetcher:
                     latest = mtime
         return latest
     
-    def save_uploaded_csv(self, filename: str, content: bytes) -> None:
-        """將上傳的 CSV 存到 ir_csv，並清除快取。filename 需含 .csv，例如 1月.csv。"""
+    def _detect_month_from_csv_content(self, content: bytes) -> Optional[int]:
+        """
+        從 CSV 內容辨識代表哪個月份。掃描日期欄（常見格式 115/01/08、115/01/13 至 115/01/20），
+        取出現最多次的月份。若無法辨識則回傳 None。
+        """
         import re
-        base = Path(filename).name
-        if not base.lower().endswith('.csv'):
-            base = base + '.csv' if not base.endswith('.') else base[:-1] + '.csv'
-        safe = re.sub(r'[^\w\u4e00-\u9fff\-\s.]', '', base)
-        if not safe:
-            safe = f'upload_{int(datetime.now().timestamp())}.csv'
+        text = None
+        for enc in ('big5', 'utf-8', 'utf-8-sig', 'cp950'):
+            try:
+                text = content.decode(enc)
+                break
+            except (UnicodeDecodeError, LookupError):
+                continue
+        if not text:
+            return None
+        month_counts = {}
+        for line in text.splitlines()[:100]:
+            parts = line.split(',') if ',' in line else line.split('\t')
+            for i, cell in enumerate(parts):
+                if i > 5:
+                    break
+                cell = cell.strip().strip('"')
+                m = re.search(r'(\d{2,3})/(\d{1,2})/(\d{1,2})', cell)
+                if m:
+                    try:
+                        month = int(m.group(2))
+                        if 1 <= month <= 12:
+                            month_counts[month] = month_counts.get(month, 0) + 1
+                    except ValueError:
+                        pass
+        if not month_counts:
+            return None
+        return max(month_counts.keys(), key=lambda m: month_counts[m])
+    
+    def save_uploaded_csv(self, filename: str, content: bytes) -> tuple:
+        """
+        將上傳的 CSV 存到 ir_csv，並清除快取。
+        會嘗試從內容辨識月份，若成功則存為「N月.csv」並覆蓋同月份舊檔；否則保留原檔名。
+        回傳 (saved_filename, detected_month or None)
+        """
+        import re
+        detected_month = self._detect_month_from_csv_content(content)
+        if detected_month is not None:
+            month_names = {
+                1: '1月', 2: '2月', 3: '3月', 4: '4月', 5: '5月', 6: '6月',
+                7: '7月', 8: '8月', 9: '9月', 10: '10月', 11: '11月', 12: '12月'
+            }
+            safe = f'{month_names[detected_month]}.csv'
+        else:
+            base = Path(filename).name
+            if not base.lower().endswith('.csv'):
+                base = base + '.csv' if not base.endswith('.') else base[:-1] + '.csv'
+            safe = re.sub(r'[^\w\u4e00-\u9fff\-\s.]', '', base)
+            if not safe:
+                safe = f'upload_{int(datetime.now().timestamp())}.csv'
         path = self.csv_dir / safe
         self.csv_dir.mkdir(exist_ok=True)
         with open(path, 'wb') as f:
             f.write(content)
         self.cache.clear()
         self.cache_time.clear()
+        return (safe, detected_month)
