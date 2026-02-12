@@ -73,6 +73,92 @@ header h1 {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
+/* 可摺疊專區：預設收合，點標題展開 */
+.collapsible-section .section-header-toggle {
+    cursor: pointer;
+    user-select: none;
+}
+.collapsible-section .section-header-toggle:hover {
+    opacity: 0.9;
+}
+.collapsible-section .section-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.collapsible-section .toggle-icon {
+    font-size: 14px;
+    color: #667eea;
+    transition: transform 0.2s;
+}
+.collapsible-section[data-expanded="false"] .section-body {
+    display: none;
+}
+.collapsible-section[data-expanded="true"] .toggle-icon {
+    transform: rotate(90deg);
+}
+.collapsible-section .section-body {
+    padding-top: 8px;
+}
+
+/* 合併專區：國際／ETF／金屬／加密／比率 同框 */
+.combined-markets-section .combined-subsection,
+.combined-news-premarket-section .combined-subsection,
+.combined-ir-economic-section .combined-subsection {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #eee;
+}
+.combined-markets-section .combined-subsection:first-child,
+.combined-news-premarket-section .combined-subsection:first-child,
+.combined-ir-economic-section .combined-subsection:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+}
+.combined-markets-section .market-subsection-title,
+.combined-news-premarket-section .market-subsection-title,
+.combined-ir-economic-section .market-subsection-title {
+    font-size: 16px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.combined-markets-section .market-subsection-title .update-time,
+.combined-news-premarket-section .market-subsection-title .update-time,
+.combined-ir-economic-section .market-subsection-title .update-time {
+    font-size: 12px;
+    font-weight: normal;
+    color: #888;
+}
+
+/* 合併專區：新聞聲量 + 盤前資料 同框 */
+.combined-news-premarket-section {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-top: 20px;
+}
+.combined-news-premarket-section .section-header .section-controls {
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* 合併專區：法人說明會 + 總經 同框 */
+.combined-ir-economic-section {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-top: 20px;
+}
+.combined-ir-economic-section .section-header .section-controls {
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 .market-section h2 {
     color: #667eea;
     margin: 0;
@@ -104,6 +190,8 @@ header h1 {
 .economic-section h2,
 .volume-section h2,
 .premarket-section h2,
+.combined-news-premarket-section h2,
+.combined-ir-economic-section h2,
 .ir-section h2 {
     color: #667eea;
     margin: 0;

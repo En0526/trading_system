@@ -1,5 +1,13 @@
 // 交易系統前端邏輯
 
+// 摺疊／展開專區（點標題切換）
+function toggleCollapsibleSection(headerEl) {
+    var section = headerEl && headerEl.closest ? headerEl.closest('.collapsible-section') : null;
+    if (!section) return;
+    var expanded = section.getAttribute('data-expanded') === 'true';
+    section.setAttribute('data-expanded', expanded ? 'false' : 'true');
+}
+
 // 財報日期顯示為 M/D
 function formatEarningsDate(isoDate) {
     if (!isoDate || isoDate.length < 10) return isoDate || '';
@@ -7,8 +15,8 @@ function formatEarningsDate(isoDate) {
     return (parseInt(m, 10) + '/' + parseInt(d, 10));
 }
 
-// 下方區塊載入順序（輕→重、依序發送，避免單一 worker 同時接多個重請求而 502）
-function runBelowSectionsInOrder(forceRefresh) {
+// 區塊載入順序（依畫面區塊由上而下，依序發送，避免單一 worker 同時接多個重請求而 502）
+function runAllSectionsInOrder(forceRefresh) {
     forceRefresh = !!forceRefresh;
     var delayMs = 400;
     function next(i, list) {
@@ -16,19 +24,19 @@ function runBelowSectionsInOrder(forceRefresh) {
         return list[i](forceRefresh).then(function() {
             return new Promise(function(r) { setTimeout(r, delayMs); });
         }).then(function() { return next(i + 1, list); }).catch(function(e) {
-            console.error('Below section load error:', e);
+            console.error('Section load error:', e);
             return next(i + 1, list);
         });
     }
-    var order = [loadEconomicCalendar, loadInstitutionalNet, loadIRMeetings, loadPremarketData, loadNewsVolume];
+    // 順序：法人說明會 → 總經 → 新聞聲量 → 盤前資料 → 美股/台股/國際 → 三大法人
+    var order = [loadIRMeetings, loadEconomicCalendar, loadNewsVolume, loadPremarketData, loadMarketData, loadInstitutionalNet];
     return next(0, order);
 }
 
-// 初始化：市場數據先載入；下方區塊延遲 2 秒後依固定順序「一個接一個」載入，首輪不強制 refresh 以減輕算力
+// 初始化：延遲 2 秒後依區塊順序「一個接一個」載入，首輪不強制 refresh 以減輕算力
 document.addEventListener('DOMContentLoaded', function() {
-    loadMarketData(false);
     setTimeout(function() {
-        runBelowSectionsInOrder(false).catch(function(e) { console.error(e); });
+        runAllSectionsInOrder(false).catch(function(e) { console.error(e); });
     }, 2000);
 });
 
