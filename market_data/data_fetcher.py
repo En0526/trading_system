@@ -16,6 +16,7 @@ import time
 import pytz
 from config import Config
 from market_data.finnhub_client import get_multiple_quotes as finnhub_get_multiple
+from market_data.fmp_client import get_earnings_calendar as fmp_get_earnings_calendar
 from market_data.deribit_client import get_multiple_crypto as deribit_get_multiple
 # 並行取得時每批最大執行緒數（降低可減輕單機負載與 Yahoo 壓力）
 MAX_WORKERS = 8
@@ -555,7 +556,7 @@ class MarketDataFetcher:
     def get_earnings_calendar(self, days_ahead: int = 60, force_refresh: bool = False) -> Dict[str, Dict]:
         """
         取得美股接下來 N 天內的財報公布日（依 Config.US_STOCKS）。
-        僅用 yfinance（含 calendar fallback）。
+        優先 FMP（若有 key）→ yfinance（含 calendar fallback）。
         回傳 { symbol: {'date': 'YYYY-MM-DD', 'days_until': int, 'name': str}, ... }
         """
         now = time.time()
@@ -565,6 +566,18 @@ class MarketDataFetcher:
             tz_et = pytz.timezone('US/Eastern')
             today = datetime.now(tz_et).date()
             end_date = today + timedelta(days=days_ahead)
+            fmp_key = getattr(Config, 'FMP_API_KEY', None) or ''
+            if fmp_key:
+                result = fmp_get_earnings_calendar(
+                    fmp_key,
+                    today.strftime('%Y-%m-%d'),
+                    end_date.strftime('%Y-%m-%d'),
+                    Config.US_STOCKS,
+                )
+                if result:
+                    self._earnings_cache = result
+                    self._earnings_cache_time = now
+                    return result
             result = {}
             for symbol, name in Config.US_STOCKS.items():
                 ec = self._yf_earnings_for_symbol(symbol, name, today, end_date, tz_et)
@@ -578,10 +591,48 @@ class MarketDataFetcher:
             print(f"get_earnings_calendar error: {e}")
             return self._earnings_cache or {}
 
+    def _yf_earnings_for_symbol_tw(self, symbol: str, name: str, today, end_date, tz_tw) -> Optional[Dict]:
+        """台股單一 symbol：yfinance get_earnings_dates + calendar fallback"""
+        try:
+            ticker = yf.Ticker(symbol)
+            next_date = None
+            ed = ticker.get_earnings_dates()
+            if ed is not None and not ed.empty:
+                for d in ed.index:
+                    try:
+                        ts = pd.Timestamp(d)
+                        if ts.tz is not None:
+                            ts = ts.tz_convert(tz_tw)
+                        d_date = ts.date()
+                    except Exception:
+                        continue
+                    if today <= d_date <= end_date:
+                        if next_date is None or d_date < next_date:
+                            next_date = d_date
+            if next_date is None:
+                cal = getattr(ticker, 'calendar', None) or (getattr(ticker, 'get_calendar', lambda: None)())
+                if isinstance(cal, dict):
+                    ed_cal = cal.get('Earnings Date')
+                    if ed_cal is not None:
+                        for d in (ed_cal if isinstance(ed_cal, list) else [ed_cal]):
+                            try:
+                                d_date = d.date() if hasattr(d, 'date') else d
+                                if today <= d_date <= end_date:
+                                    if next_date is None or d_date < next_date:
+                                        next_date = d_date
+                            except Exception:
+                                pass
+            if next_date is not None:
+                days_until = (next_date - today).days
+                return {'date': next_date.strftime('%Y-%m-%d'), 'days_until': days_until, 'name': name}
+        except Exception:
+            pass
+        return None
+
     def get_earnings_calendar_tw(self, days_ahead: int = 60, force_refresh: bool = False) -> Dict[str, Dict]:
         """
         取得台股接下來 N 天內的財報公布日（依 Config.TW_MARKETS，排除指數如 ^TWII）。
-        資料來源同美股：yfinance（Yahoo Finance），台股代碼為 .TW。
+        yfinance（含 calendar fallback）。
         回傳 { symbol: {'date': 'YYYY-MM-DD', 'days_until': int, 'name': str}, ... }
         """
         now = time.time()
@@ -594,36 +645,11 @@ class MarketDataFetcher:
             result = {}
             for symbol, name in Config.TW_MARKETS.items():
                 if symbol.startswith('^'):
-                    continue  # 跳過指數
-                try:
-                    ticker = yf.Ticker(symbol)
-                    ed = ticker.get_earnings_dates()
-                    if ed is None or ed.empty:
-                        continue
-                    dates = ed.index
-                    next_date = None
-                    for d in dates:
-                        try:
-                            ts = pd.Timestamp(d)
-                            if ts.tz is not None:
-                                ts = ts.tz_convert(tz_tw)
-                            d_date = ts.date()
-                        except Exception:
-                            continue
-                        if today <= d_date <= end_date:
-                            if next_date is None or d_date < next_date:
-                                next_date = d_date
-                    if next_date is not None:
-                        days_until = (next_date - today).days
-                        result[symbol] = {
-                            'date': next_date.strftime('%Y-%m-%d'),
-                            'days_until': days_until,
-                            'name': name,
-                        }
-                    time.sleep(0.12)
-                except Exception as e:
-                    print(f"Earnings date fetch skip {symbol}: {e}")
                     continue
+                ec = self._yf_earnings_for_symbol_tw(symbol, name, today, end_date, tz_tw)
+                if ec:
+                    result[symbol] = ec
+                time.sleep(0.12)
             self._earnings_cache_tw = result
             self._earnings_cache_tw_time = now
             return result
