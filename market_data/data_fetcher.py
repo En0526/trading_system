@@ -15,11 +15,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import pytz
 from config import Config
-from market_data.finnhub_client import (
-    get_multiple_quotes as finnhub_get_multiple,
-    get_earnings_calendar as finnhub_get_earnings_calendar,
-)
-from market_data.fmp_client import get_earnings_calendar as fmp_get_earnings_calendar
+from market_data.finnhub_client import get_multiple_quotes as finnhub_get_multiple
 from market_data.deribit_client import get_multiple_crypto as deribit_get_multiple
 # 並行取得時每批最大執行緒數（降低可減輕單機負載與 Yahoo 壓力）
 MAX_WORKERS = 8
@@ -36,6 +32,9 @@ class MarketDataFetcher:
         self._earnings_cache_duration = 3600 * 6  # 財報行事曆緩存 6 小時
         self._earnings_cache_tw = None
         self._earnings_cache_tw_time = 0
+        self._hist_cache = {}  # _fetch_hist 快取：(symbol, period) -> Series，讓比率摘要與歷史圖共用
+        self._hist_cache_time = {}
+        self._hist_cache_duration = 600  # 歷史序列快取 10 分鐘（Render 上減少重複 yf/TwelveData 請求）
     
     def _is_cache_valid(self, symbol: str) -> bool:
         """檢查緩存是否有效"""
@@ -314,23 +313,33 @@ class MarketDataFetcher:
         return out
 
     def _fetch_hist(self, symbol: str, period: str = '20y') -> Optional[pd.Series]:
-        """取得收盤價歷史序列，用於計算比率。yfinance 失敗時（如 Render 雲端被擋）用 TwelveData 備援。"""
+        """取得收盤價歷史序列，用於計算比率。yfinance 失敗時（如 Render 雲端被擋）用 TwelveData 備援。含快取供比率摘要與歷史圖共用。"""
+        cache_key = f"series_{symbol}_{period}"
+        if cache_key in self._hist_cache and cache_key in self._hist_cache_time:
+            age = time.time() - self._hist_cache_time[cache_key]
+            if age < self._hist_cache_duration:
+                return self._hist_cache[cache_key]
+        result = None
         try:
             ticker = yf.Ticker(symbol)
             df = ticker.history(period=period, interval='1d')
             if df is not None and not df.empty and 'Close' in df.columns:
                 s = df['Close'].dropna()
                 if not s.empty:
-                    return s
+                    result = s
         except Exception as e:
             print(f"yfinance history {symbol}: {e}")
-        td_key = getattr(Config, 'TWELVEDATA_API_KEY', None) or ''
-        if td_key:
-            from market_data.twelvedata_client import fetch_time_series
-            s = fetch_time_series(td_key, symbol, period)
-            if s is not None and not s.empty:
-                return s
-            time.sleep(0.5)
+        if result is None or result.empty:
+            td_key = getattr(Config, 'TWELVEDATA_API_KEY', None) or ''
+            if td_key:
+                from market_data.twelvedata_client import fetch_time_series
+                result = fetch_time_series(td_key, symbol, period)
+                if result is None or result.empty:
+                    time.sleep(0.5)
+        if result is not None and not result.empty:
+            self._hist_cache[cache_key] = result
+            self._hist_cache_time[cache_key] = time.time()
+            return result
         return None
 
     def _normalize_series_index(self, series: pd.Series) -> pd.Series:
@@ -546,7 +555,7 @@ class MarketDataFetcher:
     def get_earnings_calendar(self, days_ahead: int = 60, force_refresh: bool = False) -> Dict[str, Dict]:
         """
         取得美股接下來 N 天內的財報公布日（依 Config.US_STOCKS）。
-        優先順序：Finnhub → FMP → yfinance（含 calendar fallback）。
+        僅用 yfinance（含 calendar fallback）。
         回傳 { symbol: {'date': 'YYYY-MM-DD', 'days_until': int, 'name': str}, ... }
         """
         now = time.time()
@@ -556,32 +565,6 @@ class MarketDataFetcher:
             tz_et = pytz.timezone('US/Eastern')
             today = datetime.now(tz_et).date()
             end_date = today + timedelta(days=days_ahead)
-            from_str = today.strftime('%Y-%m-%d')
-            to_str = end_date.strftime('%Y-%m-%d')
-
-            # 1. Finnhub
-            api_key = getattr(Config, 'FINNHUB_API_KEY', None) or ''
-            if api_key:
-                result = finnhub_get_earnings_calendar(
-                    api_key, from_str, to_str, Config.US_STOCKS,
-                )
-                if result:
-                    self._earnings_cache = result
-                    self._earnings_cache_time = now
-                    return result
-
-            # 2. FMP（Financial Modeling Prep）備援
-            fmp_key = getattr(Config, 'FMP_API_KEY', None) or ''
-            if fmp_key:
-                result = fmp_get_earnings_calendar(
-                    fmp_key, from_str, to_str, Config.US_STOCKS,
-                )
-                if result:
-                    self._earnings_cache = result
-                    self._earnings_cache_time = now
-                    return result
-
-            # 3. yfinance（含 calendar fallback）
             result = {}
             for symbol, name in Config.US_STOCKS.items():
                 ec = self._yf_earnings_for_symbol(symbol, name, today, end_date, tz_et)
