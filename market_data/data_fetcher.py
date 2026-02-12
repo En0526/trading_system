@@ -260,21 +260,30 @@ class MarketDataFetcher:
             return {}
 
     def _get_us_indices(self) -> Dict[str, Dict]:
-        """美股指數：Finnhub（有 key）或 yf fallback；雲端常用 yf.download 較穩。"""
+        """美股指數：Finnhub（有 key）優先；雲端時 ^ 符號常失敗，用 yf.download 補齊。"""
         key = 'us_indices_finnhub'
         if self._is_cache_valid(key):
             return self.cache.get(key, {})
         symbols = getattr(Config, 'US_INDICES', {})
         api_key = getattr(Config, 'FINNHUB_API_KEY', None) or ''
+        out = {}
         if api_key:
-            out = finnhub_get_multiple(api_key, symbols)
-            if out:
-                self.cache[key] = out
-                self.cache_time[key] = time.time()
-                return out
-        out = self.get_multiple_markets(symbols)
-        if not out and symbols:
-            out = self._get_us_indices_yf_download(symbols)
+            raw = finnhub_get_multiple(api_key, symbols) or {}
+            for sym, data in raw.items():
+                if data and (data.get('current_price') or 0) > 0:
+                    out[sym] = data
+        missing = {s: n for s, n in symbols.items() if s not in out}
+        if missing:
+            fill = self._get_us_indices_yf_download(missing)
+            for sym, data in (fill or {}).items():
+                if data and (data.get('current_price') or 0) > 0:
+                    out[sym] = data
+        missing = {s: n for s, n in symbols.items() if s not in out}
+        if missing:
+            partial = self.get_multiple_markets(missing)
+            for sym, data in (partial or {}).items():
+                if sym not in out and data and (data.get('current_price') or 0) > 0:
+                    out[sym] = data
         if out:
             self.cache[key] = out
             self.cache_time[key] = time.time()

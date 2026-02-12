@@ -14,6 +14,8 @@ FINNHUB_INDEX_MAP = {
     "^GSPC": ".SPX",
     "^DJI": ".DJI",
     "^IXIC": ".IXIC",
+    "^NDX": ".NDX",
+    "^RUT": ".RUT",
 }
 
 

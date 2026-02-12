@@ -16,8 +16,8 @@ class Config:
         '^GSPC': 'S&P 500',
         '^DJI': 'Dow Jones',
         '^IXIC': 'NASDAQ',
-        'QQQ': 'NASDAQ 100',
-        'IWM': 'Russell 2000'
+        '^NDX': 'NASDAQ 100',
+        '^RUT': 'Russell 2000',
     }
     
     # 美股主要公司（偏科技、半導體、大型軟體；已移除約 8 檔非科技/較小）
