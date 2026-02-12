@@ -16,7 +16,141 @@
         <div class="market-sections">
             <div id="skipped-symbols-hint" class="skipped-symbols-hint hidden" aria-hidden="true"></div>
 
-            <!-- 1. 法人說明會 + 總經（合併一框） -->
+            <!-- 1. 美股市場 -->
+            <section class="market-section collapsible-section" data-expanded="false">
+                <div class="section-header section-header-toggle" onclick="toggleCollapsibleSection(this)">
+                    <div class="section-header-left">
+                        <span class="toggle-icon">▶</span>
+                        <h2>🇺🇸 美股市場</h2>
+                    </div>
+                    <div class="section-controls" onclick="event.stopPropagation()">
+                        <span class="update-time" id="us-markets-update-time">-</span>
+                        <button class="btn-refresh-small" onclick="refreshMarketData('us')" title="更新美股市場數據">🔄 更新</button>
+                    </div>
+                </div>
+                <div class="section-body">
+                <div id="us-indices">
+                    <div class="loading">載入中...</div>
+                </div>
+                <div id="us-earnings-calendar" class="us-earnings-calendar hidden"></div>
+                <div id="us-stocks">
+                    <div class="loading">載入中...</div>
+                </div>
+                </div>
+            </section>
+
+            <!-- 2. 台股市場 -->
+            <section class="market-section collapsible-section" data-expanded="false">
+                <div class="section-header section-header-toggle" onclick="toggleCollapsibleSection(this)">
+                    <div class="section-header-left">
+                        <span class="toggle-icon">▶</span>
+                        <h2>🇹🇼 台股市場</h2>
+                    </div>
+                    <div class="section-controls" onclick="event.stopPropagation()">
+                        <span class="update-time" id="tw-markets-update-time">-</span>
+                        <button class="btn-refresh-small" onclick="refreshMarketData('tw')" title="更新台股市場數據">🔄 更新</button>
+                    </div>
+                </div>
+                <div class="section-body">
+                <div id="tw-earnings-calendar" class="us-earnings-calendar hidden"></div>
+                <div id="tw-markets">
+                    <div class="loading">載入中...</div>
+                </div>
+                </div>
+            </section>
+
+            <!-- 3. 國際市場／ETF／重金屬／加密貨幣／重要比率 -->
+            <section class="market-section combined-markets-section collapsible-section" data-expanded="false">
+                <div class="section-header section-header-toggle" onclick="toggleCollapsibleSection(this)">
+                    <div class="section-header-left">
+                        <span class="toggle-icon">▶</span>
+                        <h2>🌍 國際 · 📈 ETF · 🥇 金屬 · ₿ 加密 · 📊 比率</h2>
+                    </div>
+                    <div class="section-controls" onclick="event.stopPropagation()">
+                        <button class="btn-refresh-small" onclick="refreshMarketData('international')" title="更新國際">🔄 國際</button>
+                        <button class="btn-refresh-small" onclick="refreshMarketData('etf')" title="更新 ETF">🔄 ETF</button>
+                        <button class="btn-refresh-small" onclick="refreshMarketData('metals')" title="更新金屬">🔄 金屬</button>
+                        <button class="btn-refresh-small" onclick="refreshMarketData('crypto')" title="更新加密">🔄 加密</button>
+                        <button class="btn-refresh-small" onclick="refreshRatios()" title="更新比率">🔄 比率</button>
+                    </div>
+                </div>
+                <div class="section-body">
+                <!-- 國際市場 -->
+                <div class="combined-subsection">
+                    <h3 class="market-subsection-title">🌍 國際市場 <span class="update-time" id="international-markets-update-time">-</span></h3>
+                    <div id="international-markets">
+                        <div class="loading">載入中...</div>
+                    </div>
+                </div>
+                <!-- ETF 專區 -->
+                <div class="combined-subsection">
+                    <h3 class="market-subsection-title">📈 ETF 專區 <span class="update-time" id="etf-update-time">-</span></h3>
+                    <div class="etf-hint">美股 VOO、QQQ；台股 0050、00951 等，來源 yfinance</div>
+                    <div id="etf-markets" class="etf-grid etf-grid-horizontal-row">
+                        <div class="loading">載入中...</div>
+                    </div>
+                </div>
+                <!-- 重金屬專區 -->
+                <div class="combined-subsection">
+                    <h3 class="market-subsection-title">🥇 重金屬期貨 <span class="update-time" id="metals-update-time">-</span></h3>
+                    <div class="metals-session-hint" id="metals-session-hint">COMEX 時段：—</div>
+                    <div id="metals-futures" class="metals-grid metals-grid-horizontal-row">
+                        <div class="loading">載入中...</div>
+                    </div>
+                </div>
+                <!-- 加密貨幣專區 -->
+                <div class="combined-subsection">
+                    <h3 class="market-subsection-title">₿ 加密貨幣 <span class="update-time" id="crypto-update-time">-</span></h3>
+                    <div class="crypto-hint">報價為美元，24 小時交易</div>
+                    <div id="crypto-markets" class="crypto-grid crypto-grid-horizontal-row">
+                        <div class="loading">載入中...</div>
+                    </div>
+                </div>
+                <!-- 重要比率專區 -->
+                <div class="combined-subsection">
+                    <h3 class="market-subsection-title">📊 重要比率 <span class="update-time" id="ratios-update-time">-</span></h3>
+                    <div class="ratios-hint">金屬比率為 20 年區間；加密相關為全期。點「更新」即時重算。<strong>點擊任一比率可看走勢圖</strong>。</div>
+                    <div id="ratios-container" class="ratios-grid">
+                        <div class="loading">載入中...</div>
+                    </div>
+                </div>
+                </div>
+            </section>
+
+            <!-- 4. 三大法人買賣超專區 -->
+            <section class="market-section institutional-section collapsible-section" data-expanded="false">
+                <div class="section-header section-header-toggle" onclick="toggleCollapsibleSection(this)">
+                    <div class="section-header-left">
+                        <span class="toggle-icon">▶</span>
+                        <h2>📊 三大法人買賣超專區</h2>
+                    </div>
+                    <div class="section-controls" onclick="event.stopPropagation()">
+                        <span class="update-time" id="institutional-update-time">-</span>
+                        <button class="btn-refresh-small" onclick="refreshInstitutionalNet()" title="更新三大法人買賣超">🔄 更新</button>
+                    </div>
+                </div>
+                <div class="section-body">
+                <div class="institutional-hint">當年累計買賣超（百萬台幣），資料來源：<a href="https://www.twse.com.tw/zh/trading/foreign/bfi82u.html" target="_blank" rel="noopener">證交所 BFI82U</a>。自今年年初起算。</div>
+                <div class="institutional-upload-block">
+                    <div class="institutional-dates-block">
+                        <span class="institutional-dates-label">已有資料日期：</span>
+                        <div id="institutional-dates-list" class="institutional-dates-chips"></div>
+                    </div>
+                    <div class="institutional-upload-form">
+                        <label>上傳 CSV（可多選）：</label>
+                        <input type="file" id="institutional-csv-file" accept=".csv" multiple />
+                        <input type="text" id="institutional-csv-date" placeholder="日期留空則從檔名/內容辨識" maxlength="8" title="單檔時可填 YYYYMMDD，多檔時請檔名含日期" />
+                        <button type="button" class="btn-refresh-small" onclick="uploadInstitutionalCsv()">上傳</button>
+                        <span id="institutional-upload-status" class="institutional-upload-status"></span>
+                    </div>
+                </div>
+                <div id="institutional-charts" class="institutional-charts">
+                    <div class="loading">載入中...</div>
+                </div>
+                </div>
+            </section>
+
+            <!-- 5. 法人說明會 + 總經（合併一框） -->
             <section class="combined-ir-economic-section collapsible-section" data-expanded="false">
                 <div class="section-header section-header-toggle" onclick="toggleCollapsibleSection(this)">
                     <div class="section-header-left">
@@ -85,7 +219,7 @@
                 </div>
             </section>
 
-            <!-- 2. 新聞聲量 + 盤前資料 -->
+            <!-- 6. 新聞聲量 + 盤前資料 -->
             <section class="combined-news-premarket-section collapsible-section" data-expanded="false">
                 <div class="section-header section-header-toggle" onclick="toggleCollapsibleSection(this)">
                     <div class="section-header-left">
@@ -136,140 +270,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
-            </section>
-
-            <!-- 3. 美股市場 -->
-            <section class="market-section collapsible-section" data-expanded="false">
-                <div class="section-header section-header-toggle" onclick="toggleCollapsibleSection(this)">
-                    <div class="section-header-left">
-                        <span class="toggle-icon">▶</span>
-                        <h2>🇺🇸 美股市場</h2>
-                    </div>
-                    <div class="section-controls" onclick="event.stopPropagation()">
-                        <span class="update-time" id="us-markets-update-time">-</span>
-                        <button class="btn-refresh-small" onclick="refreshMarketData('us')" title="更新美股市場數據">🔄 更新</button>
-                    </div>
-                </div>
-                <div class="section-body">
-                <div id="us-indices">
-                    <div class="loading">載入中...</div>
-                </div>
-                <div id="us-earnings-calendar" class="us-earnings-calendar hidden"></div>
-                <div id="us-stocks">
-                    <div class="loading">載入中...</div>
-                </div>
-                </div>
-            </section>
-
-            <!-- 4. 台股市場 -->
-            <section class="market-section collapsible-section" data-expanded="false">
-                <div class="section-header section-header-toggle" onclick="toggleCollapsibleSection(this)">
-                    <div class="section-header-left">
-                        <span class="toggle-icon">▶</span>
-                        <h2>🇹🇼 台股市場</h2>
-                    </div>
-                    <div class="section-controls" onclick="event.stopPropagation()">
-                        <span class="update-time" id="tw-markets-update-time">-</span>
-                        <button class="btn-refresh-small" onclick="refreshMarketData('tw')" title="更新台股市場數據">🔄 更新</button>
-                    </div>
-                </div>
-                <div class="section-body">
-                <div id="tw-earnings-calendar" class="us-earnings-calendar hidden"></div>
-                <div id="tw-markets">
-                    <div class="loading">載入中...</div>
-                </div>
-                </div>
-            </section>
-
-            <!-- 5. 國際市場／ETF／重金屬／加密貨幣／重要比率 -->
-            <section class="market-section combined-markets-section collapsible-section" data-expanded="false">
-                <div class="section-header section-header-toggle" onclick="toggleCollapsibleSection(this)">
-                    <div class="section-header-left">
-                        <span class="toggle-icon">▶</span>
-                        <h2>🌍 國際 · 📈 ETF · 🥇 金屬 · ₿ 加密 · 📊 比率</h2>
-                    </div>
-                    <div class="section-controls" onclick="event.stopPropagation()">
-                        <button class="btn-refresh-small" onclick="refreshMarketData('international')" title="更新國際">🔄 國際</button>
-                        <button class="btn-refresh-small" onclick="refreshMarketData('etf')" title="更新 ETF">🔄 ETF</button>
-                        <button class="btn-refresh-small" onclick="refreshMarketData('metals')" title="更新金屬">🔄 金屬</button>
-                        <button class="btn-refresh-small" onclick="refreshMarketData('crypto')" title="更新加密">🔄 加密</button>
-                        <button class="btn-refresh-small" onclick="refreshRatios()" title="更新比率">🔄 比率</button>
-                    </div>
-                </div>
-                <div class="section-body">
-                <!-- 國際市場 -->
-                <div class="combined-subsection">
-                    <h3 class="market-subsection-title">🌍 國際市場 <span class="update-time" id="international-markets-update-time">-</span></h3>
-                    <div id="international-markets">
-                        <div class="loading">載入中...</div>
-                    </div>
-                </div>
-                <!-- ETF 專區 -->
-                <div class="combined-subsection">
-                    <h3 class="market-subsection-title">📈 ETF 專區 <span class="update-time" id="etf-update-time">-</span></h3>
-                    <div class="etf-hint">美股 VOO、QQQ；台股 0050、00951 等，來源 yfinance</div>
-                    <div id="etf-markets" class="etf-grid etf-grid-horizontal-row">
-                        <div class="loading">載入中...</div>
-                    </div>
-                </div>
-                <!-- 重金屬專區 -->
-                <div class="combined-subsection">
-                    <h3 class="market-subsection-title">🥇 重金屬期貨 <span class="update-time" id="metals-update-time">-</span></h3>
-                    <div class="metals-session-hint" id="metals-session-hint">COMEX 時段：—</div>
-                    <div id="metals-futures" class="metals-grid metals-grid-horizontal-row">
-                        <div class="loading">載入中...</div>
-                    </div>
-                </div>
-                <!-- 加密貨幣專區 -->
-                <div class="combined-subsection">
-                    <h3 class="market-subsection-title">₿ 加密貨幣 <span class="update-time" id="crypto-update-time">-</span></h3>
-                    <div class="crypto-hint">報價為美元，24 小時交易</div>
-                    <div id="crypto-markets" class="crypto-grid crypto-grid-horizontal-row">
-                        <div class="loading">載入中...</div>
-                    </div>
-                </div>
-                <!-- 重要比率專區 -->
-                <div class="combined-subsection">
-                    <h3 class="market-subsection-title">📊 重要比率 <span class="update-time" id="ratios-update-time">-</span></h3>
-                    <div class="ratios-hint">金屬比率為 20 年區間；加密相關為全期。點「更新」即時重算。<strong>點擊任一比率可看走勢圖</strong>。</div>
-                    <div id="ratios-container" class="ratios-grid">
-                        <div class="loading">載入中...</div>
-                    </div>
-                </div>
-                </div>
-            </section>
-
-            <!-- 6. 三大法人買賣超專區 -->
-            <section class="market-section institutional-section collapsible-section" data-expanded="false">
-                <div class="section-header section-header-toggle" onclick="toggleCollapsibleSection(this)">
-                    <div class="section-header-left">
-                        <span class="toggle-icon">▶</span>
-                        <h2>📊 三大法人買賣超專區</h2>
-                    </div>
-                    <div class="section-controls" onclick="event.stopPropagation()">
-                        <span class="update-time" id="institutional-update-time">-</span>
-                        <button class="btn-refresh-small" onclick="refreshInstitutionalNet()" title="更新三大法人買賣超">🔄 更新</button>
-                    </div>
-                </div>
-                <div class="section-body">
-                <div class="institutional-hint">當年累計買賣超（百萬台幣），資料來源：<a href="https://www.twse.com.tw/zh/trading/foreign/bfi82u.html" target="_blank" rel="noopener">證交所 BFI82U</a>。自今年年初起算。</div>
-                <div class="institutional-upload-block">
-                    <div class="institutional-dates-block">
-                        <span class="institutional-dates-label">已有資料日期：</span>
-                        <div id="institutional-dates-list" class="institutional-dates-chips"></div>
-                    </div>
-                    <div class="institutional-upload-form">
-                        <label>上傳 CSV（可多選）：</label>
-                        <input type="file" id="institutional-csv-file" accept=".csv" multiple />
-                        <input type="text" id="institutional-csv-date" placeholder="日期留空則從檔名/內容辨識" maxlength="8" title="單檔時可填 YYYYMMDD，多檔時請檔名含日期" />
-                        <button type="button" class="btn-refresh-small" onclick="uploadInstitutionalCsv()">上傳</button>
-                        <span id="institutional-upload-status" class="institutional-upload-status"></span>
-                    </div>
-                </div>
-                <div id="institutional-charts" class="institutional-charts">
-                    <div class="loading">載入中...</div>
-                </div>
                 </div>
             </section>
         </div>

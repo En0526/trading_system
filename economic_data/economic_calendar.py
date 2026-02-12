@@ -260,7 +260,7 @@ class EconomicCalendar:
         elif 'producer price index' in bls_name_lower or 'ppi' in bls_name_lower:
             return 'PPI'
         elif 'employment situation' in bls_name_lower:
-            return 'NFP'  # 非农就业
+            return 'NFP'  # 非農就業（同一天也會新增 UNEMPLOYMENT）
         elif 'unemployment' in bls_name_lower and 'rate' in bls_name_lower:
             return 'UNEMPLOYMENT'
         elif 'retail sales' in bls_name_lower:
@@ -387,10 +387,24 @@ class EconomicCalendar:
                                 'release_date_tw': release_date.astimezone(pytz.timezone('Asia/Taipei')).strftime('%Y-%m-%d %H:%M CST'),
                                 'frequency': indicator_info['frequency'],
                                 'importance': self._get_importance(indicator_key),
-                                'from_bls': True  # 标记这是从BLS爬取的
+                                'from_bls': True
                             }
-                            
                             events.append(event)
+                            # Employment Situation 同日發布 NFP 與失業率，補上 UNEMPLOYMENT 事件
+                            if indicator_key == 'NFP':
+                                ur_info = self.indicators.get('UNEMPLOYMENT', {})
+                                events.append({
+                                    'indicator': 'UNEMPLOYMENT',
+                                    'name': ur_info.get('name', '失業率'),
+                                    'name_en': ur_info.get('name_en', 'Unemployment Rate'),
+                                    'source': ur_info.get('source', 'BLS'),
+                                    'release_date': release_date.isoformat(),
+                                    'release_date_local': release_date.strftime('%Y-%m-%d %H:%M ET'),
+                                    'release_date_tw': release_date.astimezone(pytz.timezone('Asia/Taipei')).strftime('%Y-%m-%d %H:%M CST'),
+                                    'frequency': ur_info.get('frequency', 'monthly'),
+                                    'importance': self._get_importance('UNEMPLOYMENT'),
+                                    'from_bls': True
+                                })
                 
         except Exception as e:
             print(f"从BLS获取数据时出错: {e}")
@@ -469,16 +483,26 @@ class EconomicCalendar:
             if cache_age < self.cache_duration:
                 return self.cache[cache_key]
         
-        # 僅使用 BLS 爬取之確切日期，不顯示估算日期
-        # 抓「當月 + 下月」兩個月的行事曆
+        # BLS + BEA 爬取
         bls_events = self.fetch_from_bls_schedule(months_ahead=2)
-        
-        if bls_events:
-            events = bls_events
-        else:
-            # 無確切日期時不顯示估算，由使用者每月自行至 BLS 查看後更新
-            events = []
-        
+        try:
+            from economic_data.bea_data import fetch_bea_schedule
+            bea_events = fetch_bea_schedule()
+            if not bea_events:
+                from economic_data.bea_data import fetch_bea_from_json
+                bea_events = fetch_bea_from_json()
+        except Exception:
+            bea_events = []
+
+        events = list(bls_events) if bls_events else []
+        # 合併 BEA 事件，避免重複（同 indicator + 同日期）
+        seen_keys = {(e['indicator'], e['release_date'][:10]) for e in events}
+        for e in bea_events:
+            k = (e['indicator'], e['release_date'][:10])
+            if k not in seen_keys:
+                seen_keys.add(k)
+                events.append(e)
+
         # 按时间排序
         events.sort(key=lambda x: x['release_date'])
         
@@ -491,29 +515,53 @@ class EconomicCalendar:
                 seen.add(key)
                 unique_events.append(event)
         
-        # 為 CPI、PPI、NFP 補充前月、前年、預測值
-        cpi_ctx = self._get_cpi_context_cached(force_refresh)
-        ppi_ctx = self._get_ppi_context_cached(force_refresh)
-        nfp_ctx = self._get_nfp_context_cached(force_refresh)
+        # 為 CPI、PPI、NFP、UNEMPLOYMENT、PCE、GDP 補充前月／前季、前年同月／同季
+        try:
+            from economic_data.cpi_data import (
+                infer_reported_month_from_release,
+                fetch_cpi_for_event,
+                fetch_ppi_for_event,
+                fetch_nfp_for_event,
+                fetch_unemployment_for_event,
+                fetch_pce_for_event,
+                fetch_gdp_for_event,
+            )
+        except ImportError:
+            pass
+
         for event in unique_events:
             ind = event.get('indicator')
             ctx = None
-            if ind == 'CPI':
-                ctx = cpi_ctx
-            elif ind == 'PPI':
-                ctx = ppi_ctx
-            elif ind == 'NFP':
-                ctx = nfp_ctx
+            rd = event.get('release_date', '')[:10]
+            try:
+                y, m = int(rd[:4]), int(rd[5:7]) if len(rd) >= 7 else 0
+            except (ValueError, TypeError):
+                y, m = 0, 0
+
+            if ind in ('CPI', 'PPI', 'NFP', 'UNEMPLOYMENT') and y and m:
+                ry, rm = infer_reported_month_from_release(y, m)
+                if ind == 'CPI':
+                    ctx = fetch_cpi_for_event(ry, rm)
+                    if ctx.get('forecast_hint'):
+                        event['forecast_hint'] = ctx['forecast_hint']
+                elif ind == 'PPI':
+                    ctx = fetch_ppi_for_event(ry, rm)
+                    if ctx.get('forecast_hint'):
+                        event['forecast_hint'] = ctx['forecast_hint']
+                elif ind == 'NFP':
+                    ctx = fetch_nfp_for_event(ry, rm)
+                elif ind == 'UNEMPLOYMENT':
+                    ctx = fetch_unemployment_for_event(ry, rm)
+            elif ind == 'PCE' and event.get('reported_year') and event.get('reported_month'):
+                ctx = fetch_pce_for_event(event['reported_year'], event['reported_month'])
+            elif ind == 'GDP' and event.get('reported_year') and event.get('reported_quarter'):
+                ctx = fetch_gdp_for_event(event['reported_year'], event['reported_quarter'])
+
             if ctx:
                 if ctx.get('prev_month_value') is not None:
                     event['prev_month_value'] = ctx['prev_month_value']
                 if ctx.get('prev_year_value') is not None:
                     event['prev_year_value'] = ctx['prev_year_value']
-                if ind == 'CPI' and cpi_ctx:
-                    if cpi_ctx.get('forecast_value') is not None:
-                        event['forecast_value'] = cpi_ctx['forecast_value']
-                    elif cpi_ctx.get('forecast_hint'):
-                        event['forecast_hint'] = cpi_ctx['forecast_hint']
 
         # 分离未来和过去的事件
         now = datetime.now(self.us_tz)

@@ -897,6 +897,8 @@ function displayEconomicCalendar(data) {
                 const importanceClass = event.importance === 'high' ? 'event-high' : 'event-medium';
                 const prevMonth = (event.prev_month_value != null) ? event.prev_month_value : '—';
                 const prevYear = (event.prev_year_value != null) ? event.prev_year_value : '—';
+                const prevLabel = (event.indicator === 'GDP') ? '前季' : '前月';
+                const yearLabel = (event.indicator === 'GDP') ? '前年同季' : '前年';
                 const eventKeyEsc = (eventKey || '').replace(/'/g, "\\'");
                 html += `
                     <div class="economic-event economic-event-clickable ${importanceClass}" data-event-key="${eventKey}" onclick="openEconomicNoteModal('${eventKeyEsc}')" title="點擊填寫筆記">
@@ -904,8 +906,8 @@ function displayEconomicCalendar(data) {
                         <div class="event-name">${event.name}</div>
                         <div class="event-name-en">${event.name_en}</div>
                         <div class="event-prev-values">
-                            <span>前月：${prevMonth}</span>
-                            <span>前年：${prevYear}</span>
+                            <span>${prevLabel}：${prevMonth}</span>
+                            <span>${yearLabel}：${prevYear}</span>
                         </div>
                         <div class="event-source">來源: ${event.source}</div>
                         ${note ? '<div class="event-note-badge">📝 有筆記</div>' : ''}
@@ -937,13 +939,15 @@ function displayEconomicCalendar(data) {
                 const note = getEconomicNote(eventKey);
                 const prevMonth = (event.prev_month_value != null) ? event.prev_month_value : '—';
                 const prevYear = (event.prev_year_value != null) ? event.prev_year_value : '—';
+                const prevLabel = (event.indicator === 'GDP') ? '前季' : '前月';
+                const yearLabel = (event.indicator === 'GDP') ? '前年同季' : '前年';
                 const eventKeyEsc = (eventKey || '').replace(/'/g, "\\'");
                 html += `
                     <div class="economic-event economic-event-clickable event-past" data-event-key="${eventKey}" onclick="openEconomicNoteModal('${eventKeyEsc}')" title="點擊填寫筆記">
                         <div class="event-time">${event.release_date_tw}</div>
                         <div class="event-name">${event.name}</div>
                         <div class="event-name-en">${event.name_en}</div>
-                        <div class="event-prev-values"><span>前月：${prevMonth}</span> <span>前年：${prevYear}</span></div>
+                        <div class="event-prev-values"><span>${prevLabel}：${prevMonth}</span> <span>${yearLabel}：${prevYear}</span></div>
                         ${note ? '<div class="event-note-badge">📝 有筆記</div>' : ''}
                     </div>
                 `;
@@ -983,18 +987,20 @@ function openEconomicNoteModal(eventKey) {
     const eventName = (window._economicEventNames && window._economicEventNames[eventKey]) || eventKey;
     if (titleEl) titleEl.textContent = '筆記 － ' + eventName;
     if (textareaEl) textareaEl.value = getEconomicNote(eventKey);
-    // CPI、PPI、NFP：顯示前月、前年、預測參考（自動帶入）
+    // CPI、PPI、NFP、UNEMPLOYMENT、PCE、GDP：顯示前月／前季、前年／前年同季
     if (refEl) {
         const ev = (window._economicEventsMap && window._economicEventsMap[eventKey]) || null;
         const hasRef = ev && (ev.prev_month_value != null || ev.prev_year_value != null);
         if (hasRef && ev) {
             const prevM = (ev.prev_month_value != null) ? ev.prev_month_value : '—';
             const prevY = (ev.prev_year_value != null) ? ev.prev_year_value : '—';
+            const prevLabel = (ev.indicator === 'GDP') ? '前季' : '前月';
+            const yearLabel = (ev.indicator === 'GDP') ? '前年同季' : '前年';
             let html = '<div class="economic-note-ref-title">📊 參考數據（自動帶入）</div>' +
                 '<div class="economic-note-ref-grid">' +
-                '<span>前月：' + prevM + '</span>' +
-                '<span>前年：' + prevY + '</span>';
-            if (ev.indicator === 'CPI') {
+                '<span>' + prevLabel + '：' + prevM + '</span>' +
+                '<span>' + yearLabel + '：' + prevY + '</span>';
+            if (ev.indicator === 'CPI' || ev.indicator === 'PPI') {
                 const fc = (ev.forecast_value != null) ? ev.forecast_value : (ev.forecast_hint || '—');
                 html += '<span>預測：' + fc + '</span>';
             }
