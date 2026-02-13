@@ -202,7 +202,7 @@ function displayMarketData(data) {
     if (data && data.us_stocks !== undefined) {
         if (Object.keys(data.us_stocks).length > 0) {
             window._lastUsStocksData = data.us_stocks;
-            displayMarketSection('us-stocks', data.us_stocks, '美股個股', true, 'threeRows', false, 'price');
+            displayMarketSection('us-stocks', data.us_stocks, '美股個股', false, false, true, 'price', false, true);
         } else {
             const container = document.getElementById('us-stocks');
             if (container) container.innerHTML = '<div class="loading">暫無美股個股數據</div>';
@@ -711,7 +711,7 @@ function displayMarketSection(containerId, markets, sectionTitle = null, useScro
 function applyUsStocksSort(sortBy) {
     const data = window._lastUsStocksData;
     if (!data) return;
-    displayMarketSection('us-stocks', data, '美股個股', true, 'threeRows', false, sortBy);
+    displayMarketSection('us-stocks', data, '美股個股', false, false, true, sortBy, false, true);
 }
 
 // 台股市場：切換排序後重新顯示
