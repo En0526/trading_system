@@ -11,16 +11,11 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
     
     # 市場代碼配置
-    # 美股指數
-    US_INDICES = {
-        '^GSPC': 'S&P 500',
-        '^DJI': 'Dow Jones',
-        '^IXIC': 'NASDAQ',
-        '^NDX': 'NASDAQ 100',
-        '^RUT': 'Russell 2000',
-    }
-    
-    # 美股主要公司（偏科技、半導體、大型軟體；已移除約 8 檔非科技/較小）
+    # 美股指數已併入國際市場，此區塊保留空（兼容）
+    US_INDICES = {}
+    US_MARKETS = US_INDICES
+
+    # 美股主要公司（偏科技、半導體；已精簡非科技約 10 檔以減輕 Render 負載）
     US_STOCKS = {
         'AAPL': 'Apple',
         'MSFT': 'Microsoft',
@@ -29,20 +24,10 @@ class Config:
         'NVDA': 'NVIDIA',
         'META': 'Meta',
         'TSLA': 'Tesla',
-        'BRK.B': 'Berkshire Hathaway',
-        'UNH': 'UnitedHealth',
-        'JNJ': 'Johnson & Johnson',
-        'V': 'Visa',
-        'WMT': 'Walmart',
-        'JPM': 'JPMorgan Chase',
-        'MA': 'Mastercard',
         'ADBE': 'Adobe',
         'NFLX': 'Netflix',
-        'CRM': 'Salesforce',
         'INTC': 'Intel',
-        'TMO': 'Thermo Fisher',
         'AVGO': 'Broadcom',
-        'CSCO': 'Cisco',
         'ORCL': 'Oracle',
         'TSM': 'TSMC (ADR)',
         'AMD': 'AMD',
@@ -56,13 +41,9 @@ class Config:
         'CDNS': 'Cadence',
         'MRVL': 'Marvell',
         'QCOM': 'Qualcomm',
-        'TER': 'Teradyne',
         'ON': 'ON Semiconductor',
         'MU': 'Micron',
     }
-    
-    # 兼容舊配置
-    US_MARKETS = US_INDICES
     
     # ETF 專區（美股 + 台股 ETF，yfinance，顯示中文名）
     ETF = {
@@ -81,33 +62,28 @@ class Config:
         '2330.TW': '台積電',
         '2317.TW': '鴻海',
         '2454.TW': '聯發科',
-        # 聯電、南茂
         '2303.TW': '聯電',
-        '8150.TW': '南茂',
-        # 記憶體相關
         '2408.TW': '南亞科',
         '2344.TW': '華邦電',
         '2337.TW': '旺宏',
-        '3006.TW': '晶豪科',
-        # PCB 相關
         '3037.TW': '欣興',
-        '2313.TW': '華通',
         '8046.TW': '南電',
         '2383.TW': '台光電',
-        '6213.TW': '聯茂',
-        '2367.TW': '燿華',
         '4958.TW': '臻鼎-KY',
     }
     
+    # 國際市場（含原美股指數 S&P 500、Dow、NASDAQ 等）
     INTERNATIONAL_MARKETS = {
         '^GSPC': 'S&P 500',
         '^DJI': 'Dow Jones',
         '^IXIC': 'NASDAQ',
+        '^NDX': 'NASDAQ 100',
+        '^RUT': 'Russell 2000',
         '^N225': '日經225',
         '^HSI': '恆生指數',
         '^FTSE': '富時100',
         '^GDAXI': '德國DAX',
-        '^FCHI': '法國CAC40'
+        '^FCHI': '法國CAC40',
     }
 
     # 重金屬專區：期貨（COMEX/紐約，有夜盤日盤）

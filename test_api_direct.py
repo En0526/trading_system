@@ -17,7 +17,6 @@ with app.test_client() as client:
         print(f'Success: {data.get("success")}')
         if 'data' in data:
             print(f'Data keys: {list(data["data"].keys())}')
-            print(f'us_indices count: {len(data["data"].get("us_indices", {}))}')
             print(f'us_stocks count: {len(data["data"].get("us_stocks", {}))}')
             print(f'tw_markets count: {len(data["data"].get("tw_markets", {}))}')
             print(f'international_markets count: {len(data["data"].get("international_markets", {}))}')

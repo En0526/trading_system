@@ -81,7 +81,7 @@ def get_ratio_history(ratio_id):
 
 @app.route('/api/market-data')
 def get_market_data():
-    """獲取市場數據 API。可傳 sections=us_indices,us_stocks,... 只取部分區塊以加快首屏顯示。"""
+    """獲取市場數據 API。可傳 sections=us_stocks,tw_markets,... 只取部分區塊以加快顯示。"""
     from flask import request
     from datetime import datetime
     

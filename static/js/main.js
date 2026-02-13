@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // 區塊顯示順序：依此順序更新畫面，避免資料回傳先後造成區塊亂跳
-var MARKET_SECTION_ORDER = ['us_indices', 'us_stocks', 'tw_markets', 'international_markets', 'etf', 'metals_futures', 'crypto', 'ratios'];
+var MARKET_SECTION_ORDER = ['us_stocks', 'tw_markets', 'international_markets', 'etf', 'metals_futures', 'crypto', 'ratios'];
 
 // 合併 API 回傳的區塊到總快取並更新畫面
 function mergeAndDisplayMarketData(newData) {
@@ -72,42 +72,14 @@ function mergeAndDisplayMarketData(newData) {
     }
 }
 
-// 載入市場數據：先載入美股指數（資料量小、顯示快），再並行載入其餘區塊，避免首屏卡住
+// 載入市場數據：美股+台股一批，國際/ETF/金屬/加密/比率一批，減少請求數與 Render 負載
 async function loadMarketData(forceRefresh = false) {
     console.log('loadMarketData called, forceRefresh:', forceRefresh);
     window._marketDataCache = {};
     const baseUrl = '/api/market-data';
     const refreshQ = forceRefresh ? '&refresh=true' : '';
 
-    // 第一階段：只拉美股指數，快速顯示
-    try {
-        const url1 = baseUrl + '?sections=us_indices' + refreshQ;
-        const controller1 = new AbortController();
-        const timeout1 = setTimeout(function() { controller1.abort(); }, 90000);
-        const response1 = await fetch(url1, { signal: controller1.signal });
-        clearTimeout(timeout1);
-        if (!response1.ok) throw new Error('HTTP ' + response1.status);
-        const result1 = await response1.json();
-        if (result1.success && result1.data) {
-            mergeAndDisplayMarketData(result1.data);
-        } else {
-            throw new Error(result1.error || '首階段載入失敗');
-        }
-    } catch (error) {
-        console.error('載入美股指數錯誤:', error);
-        var msg = (error.name === 'AbortError' || (error.message && error.message.indexOf('abort') !== -1))
-            ? '請求逾時（伺服器可能正在啟動或忙碌），請稍後按「更新」重試。'
-            : ('載入市場數據時發生錯誤: ' + (error.message || ''));
-        showError(msg);
-        var containers = ['us-indices', 'us-stocks', 'tw-markets', 'international-markets', 'etf-markets', 'metals-futures', 'crypto-markets'];
-        containers.forEach(function(id) {
-            var el = document.getElementById(id);
-            if (el) el.innerHTML = '<div class="error">載入錯誤: ' + (msg.replace(/^載入市場數據時發生錯誤: /, '') || '') + '</div>';
-        });
-        return;
-    }
-
-    // 第二階段拆成兩批，避免單次請求過久逾時（Free 主機負載大時易超時）
+    // 拆分兩批，避免單次請求過久逾時（Render Free 約 30 秒）
     function setErrorForIds(ids, msg) {
         ids.forEach(function(id) {
             var el = document.getElementById(id);
@@ -115,9 +87,8 @@ async function loadMarketData(forceRefresh = false) {
         });
     }
     var timeoutMsg = '請求逾時（伺服器可能正在啟動或忙碌），請稍後按「更新」重試。';
-    var idsAll = ['us-stocks', 'tw-markets', 'international-markets', 'etf-markets', 'metals-futures', 'crypto-markets'];
 
-    // 2a：美股個股 + 台股（標的多、最吃時間）
+    // 第一批：美股個股 + 台股
     try {
         const url2a = baseUrl + '?sections=us_stocks,tw_markets' + refreshQ;
         const controller2a = new AbortController();
@@ -135,7 +106,7 @@ async function loadMarketData(forceRefresh = false) {
         setErrorForIds(['us-stocks', 'tw-markets'], isAbort ? timeoutMsg : (err2a.message || ''));
     }
 
-    // 2b：國際、金屬、加密、比率
+    // 第二批：國際（含美股指數）、ETF、金屬、加密、比率
     try {
         const url2b = baseUrl + '?sections=international_markets,etf,metals_futures,crypto,ratios' + refreshQ;
         const controller2b = new AbortController();
@@ -207,15 +178,7 @@ function displayMarketData(data) {
         }
     }
 
-    // 顯示美股指數；僅在 API 已回傳該區塊時更新
-    if (data && data.us_indices !== undefined) {
-        if (Object.keys(data.us_indices).length > 0) {
-            displayMarketSection('us-indices', data.us_indices, '美股指數');
-        } else {
-            const container = document.getElementById('us-indices');
-            if (container) container.innerHTML = '<div class="loading">暫無美股指數數據</div>';
-        }
-    }
+    // 美股指數已併入國際市場
     // 即將公布財報（60 天內）；僅在 API 已回傳該區塊時更新
     if (data && data.earnings_upcoming !== undefined) {
         const earningsEl = document.getElementById('us-earnings-calendar');

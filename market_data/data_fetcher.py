@@ -16,7 +16,7 @@ import time
 import pytz
 from config import Config
 from market_data.finnhub_client import get_multiple_quotes as finnhub_get_multiple
-from market_data.fmp_client import get_earnings_calendar as fmp_get_earnings_calendar, get_index_quotes as fmp_get_index_quotes
+from market_data.fmp_client import get_earnings_calendar as fmp_get_earnings_calendar
 from market_data.deribit_client import get_multiple_crypto as deribit_get_multiple
 # 並行取得時每批最大執行緒數（降低可減輕單機負載與 Yahoo 壓力）
 MAX_WORKERS = 8
@@ -206,33 +206,6 @@ class MarketDataFetcher:
                 except Exception:
                     pass
         return results
-
-    def _get_us_indices(self) -> Dict[str, Dict]:
-        """美股指數：FMP（一次請求）或 Finnhub，不再使用 yfinance（雲端易 502）。"""
-        key = 'us_indices'
-        if self._is_cache_valid(key):
-            return self.cache.get(key, {})
-        symbols = getattr(Config, 'US_INDICES', {})
-        out = {}
-        # 1. FMP：一次請求取全部，最快最穩
-        fmp_key = getattr(Config, 'FMP_API_KEY', None) or ''
-        if fmp_key:
-            raw = fmp_get_index_quotes(fmp_key, symbols) or {}
-            for sym, data in raw.items():
-                if data and (data.get('current_price') or 0) > 0:
-                    out[sym] = data
-        missing = {s: n for s, n in symbols.items() if s not in out}
-        # 2. Finnhub 備援（有 key 時）
-        fh_key = getattr(Config, 'FINNHUB_API_KEY', None) or ''
-        if missing and fh_key:
-            raw = finnhub_get_multiple(fh_key, missing) or {}
-            for sym, data in raw.items():
-                if data and (data.get('current_price') or 0) > 0:
-                    out[sym] = data
-        if out:
-            self.cache[key] = out
-            self.cache_time[key] = time.time()
-        return out
 
     def _get_us_stocks(self) -> Dict[str, Dict]:
         """美股個股：Finnhub（有 key）或 yf fallback。"""
@@ -663,7 +636,7 @@ class MarketDataFetcher:
     def get_market_summary(self, sections: Optional[List[str]] = None) -> Dict:
         """
         獲取市場總覽（美股／台股／國際／重金屬／加密等並行取得，加快速度）。
-        sections: 若提供則只取得指定區塊（例：['us_indices','us_stocks']），首屏可先取 us_indices 加快顯示。
+        sections: 若提供則只取得指定區塊（例：['us_stocks','tw_markets']），以減輕單次請求負載。
         """
         session = self._get_comex_session()
         try:
@@ -673,7 +646,6 @@ class MarketDataFetcher:
             metals_session_et = ''
 
         all_tasks = {
-            'us_indices': lambda: self._get_us_indices(),
             'us_stocks': lambda: self._get_us_stocks(),
             'tw_markets': lambda: self.get_multiple_markets(Config.TW_MARKETS),
             'etf': lambda: self.get_multiple_markets(getattr(Config, 'ETF', {})),
@@ -710,7 +682,6 @@ class MarketDataFetcher:
         crypto = out.get('crypto', {})
         us_stocks = out.get('us_stocks', {})
         tw_markets = out.get('tw_markets', {})
-        us_indices = out.get('us_indices', {})
         international_markets = out.get('international_markets', {})
         ratios_data = out.get('ratios') or (self.get_ratios_summary() if (sections is None or 'ratios' in (sections or [])) else {})
 
@@ -752,8 +723,6 @@ class MarketDataFetcher:
         }
         if sections is None or 'ratios' in sections:
             summary['ratios'] = ratios_data
-        if sections is None or 'us_indices' in sections:
-            summary['us_indices'] = us_indices
         if sections is None or 'us_stocks' in sections:
             summary['us_stocks'] = us_stocks
             summary['earnings_upcoming'] = earnings_list
@@ -774,7 +743,6 @@ class MarketDataFetcher:
 
         # 回傳「有請求但無資料」的標的，方便比對是否代碼錯誤或環境差異（如 Render 與本機）
         section_to_config = {
-            'us_indices': getattr(Config, 'US_INDICES', {}),
             'us_stocks': getattr(Config, 'US_STOCKS', {}),
             'tw_markets': getattr(Config, 'TW_MARKETS', {}),
             'etf': getattr(Config, 'ETF', {}),
