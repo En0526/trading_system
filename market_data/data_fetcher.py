@@ -16,7 +16,7 @@ import time
 import pytz
 from config import Config
 from market_data.finnhub_client import get_multiple_quotes as finnhub_get_multiple
-from market_data.fmp_client import get_earnings_calendar as fmp_get_earnings_calendar
+from market_data.fmp_client import get_earnings_calendar as fmp_get_earnings_calendar, get_index_quotes as fmp_get_index_quotes
 from market_data.deribit_client import get_multiple_crypto as deribit_get_multiple
 # 並行取得時每批最大執行緒數（降低可減輕單機負載與 Yahoo 壓力）
 MAX_WORKERS = 8
@@ -27,7 +27,7 @@ class MarketDataFetcher:
     def __init__(self):
         self.cache = {}
         self.cache_time = {}
-        self.cache_duration = 120  # 緩存2分鐘，減輕重複請求
+        self.cache_duration = 180  # 緩存3分鐘，減輕重複請求與 502
         self._earnings_cache = None
         self._earnings_cache_time = 0
         self._earnings_cache_duration = 3600 * 6  # 財報行事曆緩存 6 小時
@@ -207,83 +207,27 @@ class MarketDataFetcher:
                     pass
         return results
 
-    def _get_us_indices_yf_download(self, symbols: Dict[str, str]) -> Dict[str, Dict]:
-        """美股指數 yf.download 批次備援（雲端 IP 時 Ticker 常失敗，download 較穩定）。"""
-        if not symbols:
-            return {}
-        syms = list(symbols.keys())
-        try:
-            df = yf.download(syms, period='5d', interval='1d', group_by='ticker', auto_adjust=True, threads=False, progress=False)
-            if df is None or df.empty:
-                return {}
-            out = {}
-            for symbol, name in symbols.items():
-                try:
-                    if len(syms) == 1:
-                        sub = df
-                    else:
-                        if isinstance(df.columns, pd.MultiIndex):
-                            if symbol not in df.columns.get_level_values(0):
-                                continue
-                            sub = df[symbol].copy()
-                        else:
-                            sub = df
-                    if sub.empty:
-                        continue
-                    row = sub.iloc[-1]
-                    prev_row = sub.iloc[-2] if len(sub) >= 2 else None
-                    close = float(row.get('Close', 0) if hasattr(row, 'get') else row['Close'])
-                    prev = float(prev_row.get('Close', close)) if prev_row is not None else close
-                    change = close - prev if prev else 0
-                    change_pct = (change / prev * 100) if prev and prev != 0 else 0
-                    vol = int(row.get('Volume', 0) or 0)
-                    out[symbol] = {
-                        'symbol': symbol,
-                        'name': name,
-                        'current_price': round(close, 2),
-                        'previous_close': round(prev, 2),
-                        'change': round(change, 2),
-                        'change_percent': round(change_pct, 2),
-                        'volume': vol,
-                        'high': round(float(row.get('High', close)), 2) if row.get('High') not in (None, float('nan')) else None,
-                        'low': round(float(row.get('Low', close)), 2) if row.get('Low') not in (None, float('nan')) else None,
-                        'open': round(float(row.get('Open', close)), 2) if row.get('Open') not in (None, float('nan')) else None,
-                        'display_name': name,
-                        'timestamp': datetime.now(timezone.utc).isoformat(),
-                        'history': [],
-                    }
-                except Exception as e:
-                    print(f"yf.download parse {symbol}: {e}")
-                    continue
-            return out
-        except Exception as e:
-            print(f"yf.download indices: {e}")
-            return {}
-
     def _get_us_indices(self) -> Dict[str, Dict]:
-        """美股指數：Finnhub（有 key）優先；雲端時 ^ 符號常失敗，用 yf.download 補齊。"""
-        key = 'us_indices_finnhub'
+        """美股指數：FMP（一次請求）或 Finnhub，不再使用 yfinance（雲端易 502）。"""
+        key = 'us_indices'
         if self._is_cache_valid(key):
             return self.cache.get(key, {})
         symbols = getattr(Config, 'US_INDICES', {})
-        api_key = getattr(Config, 'FINNHUB_API_KEY', None) or ''
         out = {}
-        if api_key:
-            raw = finnhub_get_multiple(api_key, symbols) or {}
+        # 1. FMP：一次請求取全部，最快最穩
+        fmp_key = getattr(Config, 'FMP_API_KEY', None) or ''
+        if fmp_key:
+            raw = fmp_get_index_quotes(fmp_key, symbols) or {}
             for sym, data in raw.items():
                 if data and (data.get('current_price') or 0) > 0:
                     out[sym] = data
         missing = {s: n for s, n in symbols.items() if s not in out}
-        if missing:
-            fill = self._get_us_indices_yf_download(missing)
-            for sym, data in (fill or {}).items():
+        # 2. Finnhub 備援（有 key 時）
+        fh_key = getattr(Config, 'FINNHUB_API_KEY', None) or ''
+        if missing and fh_key:
+            raw = finnhub_get_multiple(fh_key, missing) or {}
+            for sym, data in raw.items():
                 if data and (data.get('current_price') or 0) > 0:
-                    out[sym] = data
-        missing = {s: n for s, n in symbols.items() if s not in out}
-        if missing:
-            partial = self.get_multiple_markets(missing)
-            for sym, data in (partial or {}).items():
-                if sym not in out and data and (data.get('current_price') or 0) > 0:
                     out[sym] = data
         if out:
             self.cache[key] = out
