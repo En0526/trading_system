@@ -15,8 +15,9 @@
 
         <div class="market-sections">
             <div id="skipped-symbols-hint" class="skipped-symbols-hint hidden" aria-hidden="true"></div>
+            <div class="tech-notice-banner">⚠️ 技術問題：因 Yahoo 對雲端服務商 IP 有限制，美股與國際市場暫不顯示。</div>
 
-            <!-- 1. 美股市場 -->
+            <!-- 1. 美股市場（雲端限制暫停顯示） -->
             <section class="market-section collapsible-section" data-expanded="false">
                 <div class="section-header section-header-toggle" onclick="toggleCollapsibleSection(this)">
                     <div class="section-header-left">
@@ -29,9 +30,8 @@
                     </div>
                 </div>
                 <div class="section-body">
-                <div id="us-earnings-calendar" class="us-earnings-calendar hidden"></div>
-                <div id="us-stocks">
-                    <div class="loading">載入中...</div>
+                <div id="us-stocks" class="tech-disabled-block">
+                    <div class="tech-disabled-msg">因 Yahoo 對雲端服務商 IP 有限制，美股市場暫不顯示。</div>
                 </div>
                 </div>
             </section>
@@ -72,11 +72,11 @@
                     </div>
                 </div>
                 <div class="section-body">
-                <!-- 國際市場 -->
+                <!-- 國際市場（雲端限制暫停顯示） -->
                 <div class="combined-subsection">
-                    <h3 class="market-subsection-title">🌍 國際市場 <span class="update-time" id="international-markets-update-time">-</span></h3>
-                    <div id="international-markets">
-                        <div class="loading">載入中...</div>
+                    <h3 class="market-subsection-title">🌍 國際市場</h3>
+                    <div id="international-markets" class="tech-disabled-block">
+                        <div class="tech-disabled-msg">因 Yahoo 對雲端服務商 IP 有限制，國際市場暫不顯示。</div>
                     </div>
                 </div>
                 <!-- ETF 專區 -->

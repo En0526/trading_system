@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // 區塊顯示順序：依此順序更新畫面，避免資料回傳先後造成區塊亂跳
-var MARKET_SECTION_ORDER = ['us_stocks', 'tw_markets', 'international_markets', 'etf', 'metals_futures', 'crypto', 'ratios'];
+var MARKET_SECTION_ORDER = ['tw_markets', 'etf', 'metals_futures', 'crypto', 'ratios'];
 
 // 合併 API 回傳的區塊到總快取並更新畫面
 function mergeAndDisplayMarketData(newData) {
@@ -88,9 +88,9 @@ async function loadMarketData(forceRefresh = false) {
     }
     var timeoutMsg = '請求逾時（伺服器可能正在啟動或忙碌），請稍後按「更新」重試。';
 
-    // 第一批：美股個股 + 台股
+    // 第一批：台股（美股、國際因雲端限制暫不抓取）
     try {
-        const url2a = baseUrl + '?sections=us_stocks,tw_markets' + refreshQ;
+        const url2a = baseUrl + '?sections=tw_markets' + refreshQ;
         const controller2a = new AbortController();
         const timeout2a = setTimeout(function() { controller2a.abort(); }, 120000);
         const response2a = await fetch(url2a, { signal: controller2a.signal });
@@ -98,17 +98,17 @@ async function loadMarketData(forceRefresh = false) {
         if (!response2a.ok) throw new Error('HTTP ' + response2a.status);
         const result2a = await response2a.json();
         if (result2a.success && result2a.data) mergeAndDisplayMarketData(result2a.data);
-        else setErrorForIds(['us-stocks', 'tw-markets'], result2a.error || '載入失敗');
+        else setErrorForIds(['tw-markets'], result2a.error || '載入失敗');
     } catch (err2a) {
-        console.error('載入美股/台股錯誤:', err2a);
+        console.error('載入台股錯誤:', err2a);
         var isAbort = err2a.name === 'AbortError' || (err2a.message && err2a.message.indexOf('abort') !== -1);
-        showError(isAbort ? timeoutMsg : ('載入美股/台股失敗: ' + (err2a.message || '')));
-        setErrorForIds(['us-stocks', 'tw-markets'], isAbort ? timeoutMsg : (err2a.message || ''));
+        showError(isAbort ? timeoutMsg : ('載入台股失敗: ' + (err2a.message || '')));
+        setErrorForIds(['tw-markets'], isAbort ? timeoutMsg : (err2a.message || ''));
     }
 
-    // 第二批：國際（含美股指數）、ETF、金屬、加密、比率
+    // 第二批：ETF、金屬、加密、比率（國際市場因雲端限制暫不抓取）
     try {
-        const url2b = baseUrl + '?sections=international_markets,etf,metals_futures,crypto,ratios' + refreshQ;
+        const url2b = baseUrl + '?sections=etf,metals_futures,crypto,ratios' + refreshQ;
         const controller2b = new AbortController();
         const timeout2b = setTimeout(function() { controller2b.abort(); }, 120000);
         const response2b = await fetch(url2b, { signal: controller2b.signal });
@@ -116,12 +116,12 @@ async function loadMarketData(forceRefresh = false) {
         if (!response2b.ok) throw new Error('HTTP ' + response2b.status);
         const result2b = await response2b.json();
         if (result2b.success && result2b.data) mergeAndDisplayMarketData(result2b.data);
-        else setErrorForIds(['international-markets', 'etf-markets', 'metals-futures', 'crypto-markets'], result2b.error || '載入失敗');
+        else setErrorForIds(['etf-markets', 'metals-futures', 'crypto-markets'], result2b.error || '載入失敗');
     } catch (err2b) {
-        console.error('載入國際/ETF/金屬/加密/比率錯誤:', err2b);
+        console.error('載入ETF/金屬/加密/比率錯誤:', err2b);
         var isAbort2 = err2b.name === 'AbortError' || (err2b.message && err2b.message.indexOf('abort') !== -1);
-        showError(isAbort2 ? timeoutMsg : ('載入國際/ETF/金屬/加密/比率失敗: ' + (err2b.message || '')));
-        setErrorForIds(['international-markets', 'etf-markets', 'metals-futures', 'crypto-markets'], isAbort2 ? timeoutMsg : (err2b.message || ''));
+        showError(isAbort2 ? timeoutMsg : ('載入ETF/金屬/加密/比率失敗: ' + (err2b.message || '')));
+        setErrorForIds(['etf-markets', 'metals-futures', 'crypto-markets'], isAbort2 ? timeoutMsg : (err2b.message || ''));
     }
 }
 

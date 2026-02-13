@@ -1346,6 +1346,24 @@ header h1 {
 }
 
 /* 無資料標的提示（Yahoo 404/環境差異時顯示，方便比對代碼） */
+.tech-notice-banner {
+    font-size: 14px;
+    color: #856404;
+    background: #fff3cd;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    border-left: 4px solid #ffc107;
+}
+
+.tech-disabled-block .tech-disabled-msg {
+    color: #666;
+    font-size: 13px;
+    padding: 12px;
+    background: #f5f5f5;
+    border-radius: 6px;
+}
+
 .skipped-symbols-hint {
     font-size: 13px;
     color: #856404;

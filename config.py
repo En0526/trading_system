@@ -15,34 +15,9 @@ class Config:
     US_INDICES = {}
     US_MARKETS = US_INDICES
 
-    # 美股主要公司（偏科技、半導體；已精簡非科技約 10 檔以減輕 Render 負載）
+    # 美股（雲端限制暫不顯示；保留 1 檔供本機或日後恢復）
     US_STOCKS = {
         'AAPL': 'Apple',
-        'MSFT': 'Microsoft',
-        'GOOGL': 'Alphabet',
-        'AMZN': 'Amazon',
-        'NVDA': 'NVIDIA',
-        'META': 'Meta',
-        'TSLA': 'Tesla',
-        'ADBE': 'Adobe',
-        'NFLX': 'Netflix',
-        'INTC': 'Intel',
-        'AVGO': 'Broadcom',
-        'ORCL': 'Oracle',
-        'TSM': 'TSMC (ADR)',
-        'AMD': 'AMD',
-        'UMC': '聯電 (ADR)',
-        'PLTR': 'Palantir',
-        'ASML': 'ASML',
-        'LRCX': 'Lam Research',
-        'AMAT': 'Applied Materials',
-        'KLAC': 'KLA',
-        'SNPS': 'Synopsys',
-        'CDNS': 'Cadence',
-        'MRVL': 'Marvell',
-        'QCOM': 'Qualcomm',
-        'ON': 'ON Semiconductor',
-        'MU': 'Micron',
     }
     
     # ETF 專區（美股 + 台股 ETF，yfinance，顯示中文名）
@@ -72,18 +47,9 @@ class Config:
         '4958.TW': '臻鼎-KY',
     }
     
-    # 國際市場（含原美股指數 S&P 500、Dow、NASDAQ 等）
+    # 國際市場（雲端限制暫不顯示；保留 1 檔供本機或日後恢復）
     INTERNATIONAL_MARKETS = {
         '^GSPC': 'S&P 500',
-        '^DJI': 'Dow Jones',
-        '^IXIC': 'NASDAQ',
-        '^NDX': 'NASDAQ 100',
-        '^RUT': 'Russell 2000',
-        '^N225': '日經225',
-        '^HSI': '恆生指數',
-        '^FTSE': '富時100',
-        '^GDAXI': '德國DAX',
-        '^FCHI': '法國CAC40',
     }
 
     # 重金屬專區：期貨（COMEX/紐約，有夜盤日盤）
