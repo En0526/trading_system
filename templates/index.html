@@ -17,46 +17,7 @@
             <div id="skipped-symbols-hint" class="skipped-symbols-hint hidden" aria-hidden="true"></div>
             <div class="tech-notice-banner">⚠️ 技術問題：因 Yahoo 對雲端服務商 IP 有限制，美股與國際市場暫不顯示。</div>
 
-            <!-- 1. 美股市場（雲端限制暫停顯示） -->
-            <section class="market-section collapsible-section" data-expanded="false">
-                <div class="section-header section-header-toggle" onclick="toggleCollapsibleSection(this)">
-                    <div class="section-header-left">
-                        <span class="toggle-icon">▶</span>
-                        <h2>🇺🇸 美股市場</h2>
-                    </div>
-                    <div class="section-controls" onclick="event.stopPropagation()">
-                        <span class="update-time" id="us-markets-update-time">-</span>
-                        <button class="btn-refresh-small" onclick="refreshMarketData('us')" title="更新美股市場數據">🔄 更新</button>
-                    </div>
-                </div>
-                <div class="section-body">
-                <div id="us-stocks" class="tech-disabled-block">
-                    <div class="tech-disabled-msg">因 Yahoo 對雲端服務商 IP 有限制，美股市場暫不顯示。</div>
-                </div>
-                </div>
-            </section>
-
-            <!-- 2. 台股市場 -->
-            <section class="market-section collapsible-section" data-expanded="false">
-                <div class="section-header section-header-toggle" onclick="toggleCollapsibleSection(this)">
-                    <div class="section-header-left">
-                        <span class="toggle-icon">▶</span>
-                        <h2>🇹🇼 台股市場</h2>
-                    </div>
-                    <div class="section-controls" onclick="event.stopPropagation()">
-                        <span class="update-time" id="tw-markets-update-time">-</span>
-                        <button class="btn-refresh-small" onclick="refreshMarketData('tw')" title="更新台股市場數據">🔄 更新</button>
-                    </div>
-                </div>
-                <div class="section-body">
-                <div id="tw-earnings-calendar" class="us-earnings-calendar hidden"></div>
-                <div id="tw-markets">
-                    <div class="loading">載入中...</div>
-                </div>
-                </div>
-            </section>
-
-            <!-- 3. 國際市場／ETF／重金屬／加密貨幣／重要比率 -->
+            <!-- 1. 國際市場／ETF／重金屬／加密貨幣／重要比率 -->
             <section class="market-section combined-markets-section collapsible-section" data-expanded="false">
                 <div class="section-header section-header-toggle" onclick="toggleCollapsibleSection(this)">
                     <div class="section-header-left">
@@ -79,8 +40,8 @@
                         <div class="tech-disabled-msg">因 Yahoo 對雲端服務商 IP 有限制，國際市場暫不顯示。</div>
                     </div>
                 </div>
-                <!-- ETF 專區 -->
-                <div class="combined-subsection">
+                <!-- ETF 專區（限制寬度避免超出去） -->
+                <div class="combined-subsection etf-subsection-overflow-fix">
                     <h3 class="market-subsection-title">📈 ETF 專區 <span class="update-time" id="etf-update-time">-</span></h3>
                     <div class="etf-hint">美股 VOO、QQQ；台股 0050、00951 等，來源 yfinance</div>
                     <div id="etf-markets" class="etf-grid etf-grid-horizontal-row">
@@ -267,6 +228,49 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </section>
+
+            <!-- 美股市場（雲端限制暫停顯示）→ 移到底部 -->
+            <section class="market-section collapsible-section" data-expanded="false">
+                <div class="section-header section-header-toggle" onclick="toggleCollapsibleSection(this)">
+                    <div class="section-header-left">
+                        <span class="toggle-icon">▶</span>
+                        <h2>🇺🇸 美股市場</h2>
+                    </div>
+                    <div class="section-controls" onclick="event.stopPropagation()">
+                        <span class="update-time" id="us-markets-update-time">-</span>
+                        <button class="btn-refresh-small" onclick="refreshMarketData('us')" title="更新美股市場數據">🔄 更新</button>
+                    </div>
+                </div>
+                <div class="section-body">
+                <div id="us-stocks" class="tech-disabled-block">
+                    <div class="tech-disabled-msg">因 Yahoo 對雲端服務商 IP 有限制，美股市場暫不顯示。</div>
+                </div>
+                </div>
+            </section>
+
+            <!-- 台股市場（含財報）→ 移到底部 -->
+            <section class="market-section collapsible-section" data-expanded="false">
+                <div class="section-header section-header-toggle" onclick="toggleCollapsibleSection(this)">
+                    <div class="section-header-left">
+                        <span class="toggle-icon">▶</span>
+                        <h2>🇹🇼 台股市場</h2>
+                    </div>
+                    <div class="section-controls" onclick="event.stopPropagation()">
+                        <span class="update-time" id="tw-markets-update-time">-</span>
+                        <button class="btn-refresh-small" onclick="refreshMarketData('tw')" title="更新台股市場數據">🔄 更新</button>
+                    </div>
+                </div>
+                <div class="section-body">
+                <div class="tw-earnings-subsection">
+                    <h3 class="market-subsection-title">📅 台股財報行事曆（60 天內）</h3>
+                    <div id="tw-earnings-calendar" class="us-earnings-calendar hidden"></div>
+                </div>
+                <h3 class="market-subsection-title">🇹🇼 台股報價</h3>
+                <div id="tw-markets">
+                    <div class="loading">載入中...</div>
+                </div>
                 </div>
             </section>
         </div>

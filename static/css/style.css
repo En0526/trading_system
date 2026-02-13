@@ -500,11 +500,19 @@ header h1 {
     margin-bottom: 8px;
 }
 
-/* ETF 專區：橫向一排，可左右捲動 */
+/* ETF 專區外層：限制寬度，內部可橫向捲動，避免超出去 */
+.etf-subsection-overflow-fix {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+/* ETF 專區：橫向一排，可左右捲動，限制寬度避免超出去 */
 .etf-grid.etf-grid-horizontal-row {
     display: flex;
     flex-direction: column;
-    overflow: visible;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
 }
 .etf-grid.etf-grid-horizontal-row .us-stocks-header {
     margin-bottom: 8px;
@@ -515,9 +523,10 @@ header h1 {
     flex-wrap: nowrap !important;
     gap: 12px;
     min-width: min-content;
-    overflow-x: auto;
+    overflow-x: auto !important;
     overflow-y: hidden;
     padding: 8px 0;
+    max-width: 100%;
     scrollbar-width: thin;
     scrollbar-color: #667eea #f0f0f0;
 }
