@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // 區塊顯示順序：依此順序更新畫面，避免資料回傳先後造成區塊亂跳
-var MARKET_SECTION_ORDER = ['tw_markets', 'etf', 'metals_futures', 'crypto', 'ratios'];
+var MARKET_SECTION_ORDER = ['us_stocks', 'etf', 'metals_futures', 'crypto', 'ratios'];
 
 // 合併 API 回傳的區塊到總快取並更新畫面
 function mergeAndDisplayMarketData(newData) {
@@ -88,9 +88,9 @@ async function loadMarketData(forceRefresh = false) {
     }
     var timeoutMsg = '請求逾時（伺服器可能正在啟動或忙碌），請稍後按「更新」重試。';
 
-    // 第一批：台股（美股、國際因雲端限制暫不抓取）
+    // 第一批：美股七巨頭（Finnhub）+ 財報系統
     try {
-        const url2a = baseUrl + '?sections=tw_markets' + refreshQ;
+        const url2a = baseUrl + '?sections=us_stocks' + refreshQ;
         const controller2a = new AbortController();
         const timeout2a = setTimeout(function() { controller2a.abort(); }, 120000);
         const response2a = await fetch(url2a, { signal: controller2a.signal });
@@ -98,15 +98,15 @@ async function loadMarketData(forceRefresh = false) {
         if (!response2a.ok) throw new Error('HTTP ' + response2a.status);
         const result2a = await response2a.json();
         if (result2a.success && result2a.data) mergeAndDisplayMarketData(result2a.data);
-        else setErrorForIds(['tw-markets'], result2a.error || '載入失敗');
+        else setErrorForIds(['us-stocks'], result2a.error || '載入失敗');
     } catch (err2a) {
-        console.error('載入台股錯誤:', err2a);
+        console.error('載入美股錯誤:', err2a);
         var isAbort = err2a.name === 'AbortError' || (err2a.message && err2a.message.indexOf('abort') !== -1);
-        showError(isAbort ? timeoutMsg : ('載入台股失敗: ' + (err2a.message || '')));
-        setErrorForIds(['tw-markets'], isAbort ? timeoutMsg : (err2a.message || ''));
+        showError(isAbort ? timeoutMsg : ('載入美股失敗: ' + (err2a.message || '')));
+        setErrorForIds(['us-stocks'], isAbort ? timeoutMsg : (err2a.message || ''));
     }
 
-    // 第二批：ETF、金屬、加密、比率（國際市場因雲端限制暫不抓取）
+    // 第二批：ETF、金屬、加密、比率（台股、國際因雲端限制暫不抓取）
     try {
         const url2b = baseUrl + '?sections=etf,metals_futures,crypto,ratios' + refreshQ;
         const controller2b = new AbortController();

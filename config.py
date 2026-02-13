@@ -15,9 +15,15 @@ class Config:
     US_INDICES = {}
     US_MARKETS = US_INDICES
 
-    # 美股（雲端限制暫不顯示；保留 1 檔供本機或日後恢復）
+    # 美股七巨頭（Finnhub 爬取，雲端可用；需 FINNHUB_API_KEY）
     US_STOCKS = {
         'AAPL': 'Apple',
+        'MSFT': 'Microsoft',
+        'GOOGL': 'Alphabet',
+        'AMZN': 'Amazon',
+        'NVDA': 'NVIDIA',
+        'META': 'Meta',
+        'TSLA': 'Tesla',
     }
     
     # ETF 專區（美股 + 台股 ETF，yfinance，顯示中文名）
