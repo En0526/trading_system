@@ -28,8 +28,8 @@ function runAllSectionsInOrder(forceRefresh) {
             return next(i + 1, list);
         });
     }
-    // 順序：法人說明會 → 總經 → 新聞聲量 → 盤前資料 → 美股/台股/國際 → 三大法人
-    var order = [loadIRMeetings, loadEconomicCalendar, loadNewsVolume, loadPremarketData, loadMarketData, loadInstitutionalNet];
+    // 順序：美股/台股/國際 → 三大法人 → 法人說明會 → 總經 → 新聞聲量 → 盤前資料（與畫面由上而下一致）
+    var order = [loadMarketData, loadInstitutionalNet, loadIRMeetings, loadEconomicCalendar, loadNewsVolume, loadPremarketData];
     return next(0, order);
 }
 
