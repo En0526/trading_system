@@ -307,7 +307,12 @@ header h1 {
     min-height: 155px;
 }
 
-/* 美股個股：橫向一排，可左右捲動（不再強制三行） */
+/* 美股個股：橫向一排，可左右捲動（不再強制三行）；防止 overflow 超出區塊 */
+.market-section:has(#us-stocks) .section-body {
+    max-width: 100%;
+    overflow-x: auto;
+    min-width: 0;
+}
 .us-stocks-horizontal-row .market-grid {
     display: flex !important;
     flex-direction: row !important;
